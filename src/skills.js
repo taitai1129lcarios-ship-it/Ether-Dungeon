@@ -6,13 +6,14 @@ export const SkillType = {
 };
 
 export class Skill {
-    constructor(id, name, type, cooldown, effect) {
+    constructor(id, name, type, cooldown, effect, icon) {
         this.id = id;
         this.name = name;
         this.type = type;
         this.cooldown = cooldown;
         this.currentCooldown = 0;
         this.effect = effect;
+        this.icon = icon;
         this.description = "";
     }
 
@@ -211,7 +212,7 @@ export function createSkill(data) {
     }
 
     // Create skill instance
-    const skill = new Skill(data.id, data.name, data.type, data.cooldown, null);
+    const skill = new Skill(data.id, data.name, data.type, data.cooldown, null, data.icon);
 
     // Initialize state if needed (for reverse slash)
     if (data.behavior === 'arc_slash') {
