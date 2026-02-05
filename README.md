@@ -8,9 +8,9 @@
 | キー | アクション |
 | :--- | :--- |
 | **W / A / S / D** | 移動 |
-| **左クリック** | 通常攻撃 (Normal Skill) |
+| **Space** | 通常攻撃 (Normal Skill) |
 | **E** | プライマリスキル (Primary Skill) |
-| **Space** | セカンダリスキル (Secondary Skill) |
+| **Shift** | セカンダリスキル (Secondary Skill) |
 | **Q** | アルティメットスキル (Ultimate Skill) |
 | **B** | インベントリの開閉 (一時停止) |
 

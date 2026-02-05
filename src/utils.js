@@ -1,7 +1,10 @@
 export class InputHandler {
     constructor() {
         this.keys = {};
-        window.addEventListener('keydown', (e) => this.keys[e.key] = true);
+        window.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.code === 'Space') e.preventDefault();
+            this.keys[e.key] = true;
+        });
         window.addEventListener('keyup', (e) => {
             this.keys[e.key] = false;
             // Toggle Logic helpers (store just pressed state if needed, but Game loop handles it better with a flag)

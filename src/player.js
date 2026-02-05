@@ -42,13 +42,13 @@ export class Player extends Entity {
         }
 
         // Input handling for skills
-        if (this.game.input.isDown('Click')) {
+        if (this.game.input.isDown(' ')) {
             this.useSkill(SkillType.NORMAL);
         }
         if (this.game.input.isDown('e') || this.game.input.isDown('E')) {
             this.useSkill(SkillType.PRIMARY);
         }
-        if (this.game.input.isDown(' ')) {
+        if (this.game.input.isDown('Shift')) {
             this.useSkill(SkillType.SECONDARY);
         }
         if (this.game.input.isDown('q') || this.game.input.isDown('Q')) {
