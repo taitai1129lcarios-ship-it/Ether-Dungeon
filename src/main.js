@@ -212,8 +212,18 @@ class Game {
                     trailEnd = currentAngle + trailLength;
                 }
 
+                // Calculate gradient points
+                const startX = a.x + Math.cos(trailStart) * a.radius;
+                const startY = a.y + Math.sin(trailStart) * a.radius;
+                const endX = a.x + Math.cos(trailEnd) * a.radius;
+                const endY = a.y + Math.sin(trailEnd) * a.radius;
+
+                const grad = this.ctx.createLinearGradient(startX, startY, endX, endY);
+                grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                grad.addColorStop(1, a.color);
+
                 // Main Blade
-                this.ctx.strokeStyle = a.color;
+                this.ctx.strokeStyle = grad;
                 this.ctx.lineWidth = 4;
                 this.ctx.beginPath();
                 this.ctx.arc(a.x, a.y, a.radius, trailStart, trailEnd);
