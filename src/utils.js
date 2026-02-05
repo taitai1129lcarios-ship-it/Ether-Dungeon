@@ -45,6 +45,8 @@ export class Map {
         this.tileSize = tileSize;
         this.tiles = [];
         this.rooms = [];
+        this.wallImage = new Image();
+        this.wallImage.src = 'assets/wall.png';
     }
 
     generate() {
@@ -132,21 +134,14 @@ export class Map {
                     const isFrontWall = y < this.height - 1 && this.tiles[y + 1][x] === 0;
 
                     if (isFrontWall) {
-                        // Draw Wall Face (Brick pattern)
-                        ctx.fillStyle = '#666'; // Lighter grey base
-                        ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
-
-                        // Brick pattern
-                        ctx.fillStyle = '#444'; // Darker for bricks/grout lines
-                        ctx.lineWidth = 2;
-
-                        // Horizontal lines
-                        ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, 2);
-                        ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize) + 20, this.tileSize, 2);
-
-                        // Vertical lines (staggered)
-                        ctx.fillRect(Math.floor(x * this.tileSize) + 20, Math.floor(y * this.tileSize), 2, 20);
-                        ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize) + 20, 2, 20); // Edge
+                        // Draw Wall Face (Image Texture)
+                        if (this.wallImage.complete && this.wallImage.naturalWidth !== 0) {
+                            ctx.drawImage(this.wallImage, Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
+                        } else {
+                            // Fallback if image not loaded
+                            ctx.fillStyle = '#666';
+                            ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
+                        }
                     } else {
                         // Draw Wall Top (Roof)
                         ctx.fillStyle = '#333';
