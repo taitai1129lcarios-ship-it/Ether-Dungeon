@@ -14,6 +14,11 @@ export class Player extends Entity {
             [SkillType.SECONDARY]: null,
             [SkillType.ULTIMATE]: null
         };
+
+        this.image = new Image();
+        this.image.src = 'assets/player.png';
+        this.width = 32; // Update size to match texture likely
+        this.height = 32;
     }
 
     equipSkill(skill) {
@@ -89,5 +94,18 @@ export class Player extends Entity {
         }
 
         return { x: hitX, y: hitY, w: hitW, h: hitH };
+    }
+
+    draw(ctx) {
+        if (this.image.complete && this.image.naturalWidth !== 0) {
+            ctx.drawImage(this.image, Math.floor(this.x), Math.floor(this.y), this.width, this.height);
+        } else {
+            super.draw(ctx);
+        }
+
+        // Draw Player HP Bar if not full (optional, or always?)
+        // Let's always look good or maybe top left UI handles it?
+        // Actually UI handles player HP. Entity.draw draws a bar above head.
+        // We can override to NOT draw bar above head because we have UI.
     }
 }
