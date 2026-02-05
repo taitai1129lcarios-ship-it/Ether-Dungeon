@@ -15,33 +15,16 @@ export function initInventory(game) {
         slot.addEventListener('click', () => {
             const type = slot.dataset.type;
             if (selectedSkill) {
-                // Equip selected skill to this slot
-                // Check if type matches? (Optional restriction, but for now allow any skill in any slot? 
-                // Use skill.type if strictly typed, but user might want flexibility.
-                // Let's enforce type based on skill.type if we want, OR allow mapping.
-                // Game logic: Player.equipSkill(skill) maps by skill.type.
-                // So clicking a slot might just trigger "Equip" but the slot depends on skill type?
-                // OR: The user wants to map "Normal" (LMB) to a specific skill.
-                // If the game logic strictly uses skill.type for slots, then clicking a slot 
-                // to equip a skill of a DIFFERENT type might be confusing.
-                // Let's assume skills have fixed types for now (Normal, Primary, etc).
-                // So clicking a slot only works if the selected skill matches the slot type?
-                // OR: Allow re-mapping types? Complex.
-                // SIMPLEST: "Equip" button on skill.
-                // USER REQUEST: "Click skill in backpack, then click an Equipped slot to equip."
-                // This implies customizable slots or just setting that slot.
-
-                // Let's try to set the slot.
-                // If skill.type doesn't match slot type, maybe warn?
-                // Or just force it. Player.equippedSkills is an object keyed by type.
-                // If we put a 'secondary' skill in 'primary' slot, does it work?
-                // player.js: useSkill(type) calls equippedSkills[type].
-                // So yes, if we put any skill object in equippedSkills['primary'], pressing E will use it.
-                // This allows cool customization!
-
-                game.player.equippedSkills[type] = selectedSkill;
-                renderInventory(game); // Re-render to show updates
-                selectedSkill = null; // Deselect
+                // Check if type matches
+                if (selectedSkill.type === type) {
+                    game.player.equippedSkills[type] = selectedSkill;
+                    renderInventory(game); // Re-render to show updates
+                    selectedSkill = null; // Deselect
+                } else {
+                    // Feedback for mismatch
+                    slot.classList.add('error');
+                    setTimeout(() => slot.classList.remove('error'), 400);
+                }
             } else {
                 // Determine if we want to unequip? Or just select equipped?
                 // For now, do nothing if nothing selected.
