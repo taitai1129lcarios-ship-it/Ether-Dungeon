@@ -144,18 +144,10 @@ export class Map {
                         }
                     } else {
                         // Draw Wall Top (Roof)
-                        if (this.wallImage.complete && this.wallImage.naturalWidth !== 0) {
-                            ctx.drawImage(this.wallImage, Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
-                            // Darken it to look like a top surface
-                            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                            ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
-                        } else {
-                            // Fallback
-                            ctx.fillStyle = '#333';
-                            ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
-                            ctx.strokeStyle = '#222';
-                            ctx.strokeRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
-                        }
+                        ctx.fillStyle = '#333';
+                        ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
+                        ctx.strokeStyle = '#222';
+                        ctx.strokeRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
                     }
                 } else {
                     ctx.fillStyle = '#222';

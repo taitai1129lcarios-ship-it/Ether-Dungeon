@@ -3,6 +3,7 @@ export const skillsDB = [
         id: 'slash',
         name: 'Slash',
         type: 'normal',
+        icon: 'assets/icon_slash.svg',
         cooldown: 0.2,
         behavior: 'arc_slash',
         params: {
@@ -19,6 +20,7 @@ export const skillsDB = [
         id: 'fireball',
         name: 'Fireball',
         type: 'primary',
+        icon: 'assets/icon_fireball.svg',
         cooldown: 1.0,
         behavior: 'projectile',
         params: {
@@ -34,6 +36,7 @@ export const skillsDB = [
         id: 'dash',
         name: 'Dash',
         type: 'secondary',
+        icon: 'assets/icon_dash.svg',
         cooldown: 2.0,
         behavior: 'dash',
         params: {
@@ -46,6 +49,7 @@ export const skillsDB = [
         id: 'spin',
         name: 'Spin Attack',
         type: 'ultimate',
+        icon: 'assets/icon_spin.svg',
         cooldown: 5.0,
         behavior: 'area_blast',
         params: {

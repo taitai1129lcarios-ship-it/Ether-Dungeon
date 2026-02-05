@@ -45,12 +45,22 @@ export function renderInventory(game) {
     for (let key in game.player.equippedSkills) {
         const skill = game.player.equippedSkills[key];
         const el = document.getElementById(`equip-${key}`);
+        const slot = el.parentElement; // .equip-slot
+        const icon = slot.querySelector('.skill-icon');
+
         if (skill) {
             el.textContent = skill.name;
             el.style.color = '#fff';
+            if (skill.icon) {
+                icon.src = skill.icon;
+                icon.style.display = 'inline-block';
+            } else {
+                icon.style.display = 'none';
+            }
         } else {
             el.textContent = "Empty";
             el.style.color = '#888';
+            if (icon) icon.style.display = 'none';
         }
     }
 
@@ -61,7 +71,12 @@ export function renderInventory(game) {
     game.player.inventory.forEach(skill => {
         const item = document.createElement('div');
         item.className = 'inventory-item';
-        item.textContent = skill.name;
+
+        let iconHtml = '';
+        if (skill.icon) {
+            iconHtml = `<img src="${skill.icon}" class="skill-icon">`;
+        }
+        item.innerHTML = `${iconHtml}<span>${skill.name}</span>`;
 
         if (selectedSkill === skill) {
             item.classList.add('selected');

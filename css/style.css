@@ -173,6 +173,38 @@ canvas {
     gap: 10px;
 }
 
+/* Skill Icons */
+.skill-icon {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.skill-slot .skill-icon {
+    width: 48px;
+    height: 48px;
+}
+
+.equip-slot .skill-icon {
+    width: 32px;
+    height: 32px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+    margin-bottom: 0;
+}
+
+.inventory-item .skill-icon {
+    width: 32px;
+    height: 32px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+    margin-bottom: 0;
+}
+
 .equip-slot {
     background-color: #1a1a1a;
     border: 1px solid #444;
