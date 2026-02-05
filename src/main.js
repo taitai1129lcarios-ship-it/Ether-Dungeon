@@ -52,6 +52,14 @@ class Game {
 
         this.camera = new Camera(this.width, this.height, this.map.pixelWidth, this.map.pixelHeight);
 
+        // Emergency Fallback: Ensure at least one room exists
+        if (this.map.rooms.length === 0) {
+            console.warn("Map generation failed. Creating fallback room.");
+            const fallbackRoom = { x: 10, y: 10, w: 10, h: 10 };
+            this.map.createRoom(fallbackRoom);
+            this.map.rooms.push(fallbackRoom);
+        }
+
         // Player Placement
         const startRoom = this.map.rooms[0];
         if (!this.player) {
