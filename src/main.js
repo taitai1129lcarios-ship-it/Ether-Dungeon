@@ -1,40 +1,12 @@
 import { InputHandler, Camera, Map, Entity } from './utils.js';
 import { Player } from './player.js';
+import { Enemy, Chest } from './entities.js';
 import { createSkill } from './skills.js';
 import { drawUI } from './ui.js';
+import { initInventory, renderInventory } from './inventory.js';
 import { skillsDB } from '../data/skills_db.js';
 
-class Enemy extends Entity {
-    constructor(game, x, y) {
-        super(game, x, y, 20, 20, '#ff4444', 50);
-        this.speed = 90;
-        this.attackCooldown = 0;
-    }
-
-    update(dt) {
-        const dx = this.game.player.x - this.x;
-        const dy = this.game.player.y - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist > 0 && dist < 500) {
-            this.vx = (dx / dist) * this.speed;
-            this.vy = (dy / dist) * this.speed;
-        } else {
-            this.vx = 0;
-            this.vy = 0;
-        }
-
-        super.update(dt);
-
-        if (this.x < this.game.player.x + this.game.player.width &&
-            this.x + this.width > this.game.player.x &&
-            this.y < this.game.player.y + this.game.player.height &&
-            this.y + this.height > this.game.player.y) {
-            this.game.player.takeDamage(10);
-        }
-    }
-}
-
+// Enemy class moved to entities.js
 class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -73,11 +45,20 @@ class Game {
         });
 
         this.enemies = [];
+        this.chests = [];
         for (let i = 1; i < this.map.rooms.length; i++) {
             const room = this.map.rooms[i];
             const ex = (room.x + Math.floor(room.w / 2)) * 40;
             const ey = (room.y + Math.floor(room.h / 2)) * 40;
             this.enemies.push(new Enemy(this, ex, ey));
+
+            // Spawn Chest (20% chance)
+            if (Math.random() < 0.2) {
+                // Random position in room
+                const cx = (room.x + 1 + Math.floor(Math.random() * (room.w - 2))) * 40;
+                const cy = (room.y + 1 + Math.floor(Math.random() * (room.h - 2))) * 40;
+                this.chests.push(new Chest(this, cx, cy));
+            }
         }
 
         this.animations = [];
@@ -89,6 +70,9 @@ class Game {
 
         this.uiHp = document.getElementById('hp-value');
         this.uiLevel = document.getElementById('level-value');
+
+        this.showInventory = false;
+        initInventory(this);
     }
 
     spawnParticles(x, y, count, color) {
@@ -107,6 +91,19 @@ class Game {
     }
 
     update(dt) {
+        // Toggle Inventory
+        if (this.input.keys['b'] || this.input.keys['B']) {
+            if (!this.input.bPressed) {
+                this.showInventory = !this.showInventory;
+                this.input.bPressed = true;
+                renderInventory(this);
+            }
+        } else {
+            this.input.bPressed = false;
+        }
+
+        if (this.showInventory) return; // Pause game when inventory is open
+
         if (this.isGameOver) {
             if (this.input.isDown(' ')) {
                 this.init();
@@ -123,6 +120,18 @@ class Game {
 
         this.enemies.forEach(enemy => enemy.update(dt));
         this.enemies = this.enemies.filter(e => !e.markedForDeletion);
+
+        // Update Chests (Interaction)
+        this.chests.forEach(chest => {
+            chest.update(dt);
+            // Check collision with player
+            if (this.player.x < chest.x + chest.width &&
+                this.player.x + this.player.width > chest.x &&
+                this.player.y < chest.y + chest.height &&
+                this.player.y + this.player.height > chest.y) {
+                chest.open();
+            }
+        });
 
         // Update Animations
         this.animations.forEach(a => {
@@ -169,6 +178,7 @@ class Game {
         this.ctx.translate(-Math.floor(this.camera.x), -Math.floor(this.camera.y));
 
         this.map.draw(this.ctx, this.camera);
+        this.chests.forEach(chest => chest.draw(this.ctx)); // Draw chests
         this.player.draw(this.ctx);
         this.enemies.forEach(enemy => enemy.draw(this.ctx));
 

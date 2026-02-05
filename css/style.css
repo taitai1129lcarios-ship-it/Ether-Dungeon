@@ -49,7 +49,8 @@ canvas {
     transform: translateX(-50%);
     display: flex;
     gap: 10px;
-    pointer-events: none; /* Let clicks pass through to game if needed, though UI usually consumes */
+    pointer-events: none;
+    /* Let clicks pass through to game if needed, though UI usually consumes */
 }
 
 .skill-slot {
@@ -96,7 +97,8 @@ canvas {
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 0%; /* animate this */
+    height: 0%;
+    /* animate this */
     background-color: rgba(0, 0, 0, 0.7);
     z-index: 3;
     transition: height 0.1s linear;
@@ -111,6 +113,134 @@ canvas {
     font-weight: bold;
     color: #ffcccc;
     text-shadow: 1px 1px 0 #000;
-    z-index: 4;
-    display: none; /* show when on cooldown */
+    background-color: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+.inventory-container {
+    background-color: #2a2a2a;
+    border: 2px solid #555;
+    border-radius: 10px;
+    padding: 20px;
+    width: 600px;
+    max-width: 90%;
+    color: white;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.inventory-container h2,
+.inventory-container h3 {
+    margin: 0;
+    text-align: center;
+    color: #ffd700;
+}
+
+.inventory-content {
+    display: flex;
+    gap: 20px;
+    flex: 1;
+}
+
+.equipped-section,
+.backpack-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.equip-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.equip-slot {
+    background-color: #1a1a1a;
+    border: 1px solid #444;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.equip-slot:hover {
+    background-color: #333;
+}
+
+.slot-label {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 4px;
+}
+
+.slot-content {
+    font-weight: bold;
+    color: #fff;
+}
+
+#backpack-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 8px;
+    background-color: #1a1a1a;
+    padding: 10px;
+    border-radius: 5px;
+    height: 300px;
+    overflow-y: auto;
+    border: 1px solid #444;
+}
+
+.inventory-item {
+    width: 60px;
+    height: 60px;
+    background-color: #333;
+    border: 2px solid #555;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 10px;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    padding: 2px;
+    word-break: break-word;
+}
+
+.inventory-item:hover {
+    border-color: #fff;
+}
+
+.inventory-item.selected {
+    border-color: #ffd700;
+    background-color: #444;
+    box-shadow: 0 0 5px #ffd700;
+}
+
+.inventory-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: #aaa;
+}
+
+#close-inventory {
+    padding: 8px 16px;
+    background-color: #444;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#close-inventory:hover {
+    background-color: #555;
 }

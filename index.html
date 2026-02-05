@@ -41,6 +41,46 @@
                 <div class="cooldown-text"></div>
             </div>
         </div>
+
+        <!-- Inventory Screen -->
+        <div id="inventory-screen" style="display: none;">
+            <div class="inventory-container">
+                <h2>Inventory</h2>
+                <div class="inventory-content">
+                    <div class="equipped-section">
+                        <h3>Equipped</h3>
+                        <div class="equip-slots">
+                            <div class="equip-slot" data-type="normal">
+                                <div class="slot-label">Normal (LMB)</div>
+                                <div class="slot-content" id="equip-normal">Empty</div>
+                            </div>
+                            <div class="equip-slot" data-type="primary">
+                                <div class="slot-label">Primary (E)</div>
+                                <div class="slot-content" id="equip-primary">Empty</div>
+                            </div>
+                            <div class="equip-slot" data-type="secondary">
+                                <div class="slot-label">Secondary (Space)</div>
+                                <div class="slot-content" id="equip-secondary">Empty</div>
+                            </div>
+                            <div class="equip-slot" data-type="ultimate">
+                                <div class="slot-label">Ultimate (Q)</div>
+                                <div class="slot-content" id="equip-ultimate">Empty</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="backpack-section">
+                        <h3>Backpack</h3>
+                        <div id="backpack-grid">
+                            <!-- Items will be injected here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="inventory-footer">
+                    <p>Click a skill in Backpack, then click an Equipped slot to equip.</p>
+                    <button id="close-inventory">Close (B)</button>
+                </div>
+            </div>
+        </div>
     </div>
     <script type="module" src="src/main.js"></script>
 </body>
