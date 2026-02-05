@@ -16,8 +16,17 @@ export class Player extends Entity {
         };
 
         this.image = new Image();
-        this.image.src = 'assets/player.png';
-        this.width = 32; // Update size to match texture likely
+        this.image.src = 'assets/player_sprites.png';
+
+        // Sprite animation properties
+        this.frameX = 0;
+        this.frameY = 0; // Row: 0=Down, 1=Left, 2=Right, 3=Up
+        this.maxFrames = 4; // Columns
+        this.frameTimer = 0;
+        this.frameInterval = 0.15; // Animation speed
+        this.spriteSize = 32; // Size of one frame in sprite sheet
+
+        this.width = 32;
         this.height = 32;
     }
 
@@ -31,11 +40,49 @@ export class Player extends Entity {
     update(dt) {
         this.vx = 0;
         this.vy = 0;
+        let moving = false;
 
-        if (this.game.input.isDown('ArrowUp') || this.game.input.isDown('KeyW')) { this.vy = -this.speed; this.facing = 'up'; }
-        if (this.game.input.isDown('ArrowDown') || this.game.input.isDown('KeyS')) { this.vy = this.speed; this.facing = 'down'; }
-        if (this.game.input.isDown('ArrowLeft') || this.game.input.isDown('KeyA')) { this.vx = -this.speed; this.facing = 'left'; }
-        if (this.game.input.isDown('ArrowRight') || this.game.input.isDown('KeyD')) { this.vx = this.speed; this.facing = 'right'; }
+        if (this.game.input.isDown('ArrowUp') || this.game.input.isDown('KeyW')) {
+            this.vy = -this.speed;
+            this.facing = 'up';
+            moving = true;
+        }
+        if (this.game.input.isDown('ArrowDown') || this.game.input.isDown('KeyS')) {
+            this.vy = this.speed;
+            this.facing = 'down';
+            moving = true;
+        }
+        if (this.game.input.isDown('ArrowLeft') || this.game.input.isDown('KeyA')) {
+            this.vx = -this.speed;
+            this.facing = 'left';
+            moving = true;
+        }
+        if (this.game.input.isDown('ArrowRight') || this.game.input.isDown('KeyD')) {
+            this.vx = this.speed;
+            this.facing = 'right';
+            moving = true;
+        }
+
+        // Animation Logic
+        if (moving) {
+            this.frameTimer += dt;
+            if (this.frameTimer > this.frameInterval) {
+                this.frameX++;
+                if (this.frameX >= this.maxFrames) this.frameX = 0;
+                this.frameTimer = 0;
+            }
+        } else {
+            this.frameX = 0; // Reset to standing frame
+            this.frameTimer = 0;
+        }
+
+        // Map facing to sprite row
+        switch (this.facing) {
+            case 'down': this.frameY = 0; break;
+            case 'left': this.frameY = 1; break;
+            case 'right': this.frameY = 2; break;
+            case 'up': this.frameY = 3; break;
+        }
 
         super.update(dt);
 
@@ -98,7 +145,19 @@ export class Player extends Entity {
 
     draw(ctx) {
         if (this.image.complete && this.image.naturalWidth !== 0) {
-            ctx.drawImage(this.image, Math.floor(this.x), Math.floor(this.y), this.width, this.height);
+            // Calculate sprite position
+            // Assuming sprite sheet is a grid of equal sized frames
+            const sx = this.frameX * this.spriteSize;
+            const sy = this.frameY * this.spriteSize; // Down=0, Left=32, Right=64, Up=96
+
+            // Determine if source image size matches expectation or if we need to scale logic
+            // Ideally image width = maxFrames * spriteSize
+
+            ctx.drawImage(
+                this.image,
+                sx, sy, this.spriteSize, this.spriteSize, // Source
+                Math.floor(this.x), Math.floor(this.y), this.width, this.height // Destination
+            );
         } else {
             super.draw(ctx);
         }
