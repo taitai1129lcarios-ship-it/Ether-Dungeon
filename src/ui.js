@@ -52,11 +52,16 @@ export function drawUI(ctx, game, width, height) {
             if (skill) {
                 // Update Name (optimization: only if changed? checking textContent is fast enough)
                 // Update Icon
+                // Update Icon
                 if (skill.icon) {
-                    slot.icon.src = skill.icon;
-                    slot.icon.style.display = 'block';
+                    if (slot.icon.getAttribute('src') !== skill.icon) {
+                        slot.icon.src = skill.icon;
+                        slot.icon.style.display = 'block';
+                    }
                 } else {
-                    slot.icon.style.display = 'none';
+                    if (slot.icon.style.display !== 'none') {
+                        slot.icon.style.display = 'none';
+                    }
                 }
 
                 // Update Cooldown
