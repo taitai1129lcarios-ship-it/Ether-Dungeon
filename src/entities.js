@@ -87,3 +87,45 @@ export class Chest extends Entity {
         }
     }
 }
+
+export class Stairs extends Entity {
+    constructor(game, x, y) {
+        super(game, x, y, 40, 40, '#666', 1); // Indestructible mostly
+        this.invulnerable = 999999; // effectively invincible
+    }
+
+    update(dt) {
+        // Static
+    }
+
+    draw(ctx) {
+        // Draw concentric rectangles to look like steps down
+        const steps = 3;
+        for (let i = 0; i < steps; i++) {
+            const inset = i * 6;
+            const darkness = 0.4 + (i * 0.2); // getting darker
+            const val = Math.floor(100 * (1 - darkness));
+            ctx.fillStyle = `rgb(${val}, ${val}, ${val})`;
+
+            ctx.fillRect(
+                this.x + inset,
+                this.y + inset,
+                this.width - (inset * 2),
+                this.height - (inset * 2)
+            );
+
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(
+                this.x + inset,
+                this.y + inset,
+                this.width - (inset * 2),
+                this.height - (inset * 2)
+            );
+        }
+
+        // Inner void
+        ctx.fillStyle = '#000';
+        ctx.fillRect(this.x + 16, this.y + 16, 8, 8);
+    }
+}

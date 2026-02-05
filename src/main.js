@@ -1,6 +1,6 @@
 import { InputHandler, Camera, Map, Entity } from './utils.js';
 import { Player } from './player.js';
-import { Enemy, Chest } from './entities.js';
+import { Enemy, Chest, Stairs } from './entities.js';
 import { createSkill } from './skills.js';
 import { drawUI } from './ui.js';
 import { initInventory, renderInventory } from './inventory.js';
@@ -14,7 +14,6 @@ class Game {
         this.width = this.canvas.width;
         this.height = this.canvas.height;
 
-        this.input = new InputHandler();
         this.init();
 
         this.loop = this.loop.bind(this);
@@ -22,39 +21,92 @@ class Game {
     }
 
     init() {
-        // Larger Map: 80x60 tiles (3200x2400 pixels)
+        this.input = new InputHandler();
+        this.level = 1;
+        this.isGameOver = false;
+
+        // Initial Player Setup (will be placed in startLevel)
+        this.player = null;
+
+        this.uiHp = document.getElementById('hp-value');
+        this.uiLevel = document.getElementById('level-value');
+
+        this.showInventory = false;
+        initInventory(this);
+
+        this.startLevel();
+    }
+
+    startLevel() {
+        // Map Generation
         this.map = new Map(80, 60, 40);
         this.map.generate();
-
         this.camera = new Camera(this.width, this.height, this.map.pixelWidth, this.map.pixelHeight);
 
+        // Player Placement
         const startRoom = this.map.rooms[0];
-        this.player = new Player(this, (startRoom.x + 1) * 40, (startRoom.y + 1) * 40);
+        if (!this.player) {
+            this.player = new Player(this, (startRoom.x + 1) * 40, (startRoom.y + 1) * 40);
+
+            // Initial Skills
+            skillsDB.forEach(skillData => {
+                const skill = createSkill(skillData);
+                if (skill) {
+                    this.player.inventory.push(skill);
+                    if (!this.player.equippedSkills[skill.type]) {
+                        this.player.equipSkill(skill);
+                    }
+                }
+            });
+        } else {
+            // Relocate existing player
+            this.player.x = (startRoom.x + 1) * 40;
+            this.player.y = (startRoom.y + 1) * 40;
+            this.player.vx = 0;
+            this.player.vy = 0;
+            // Ensure player is linked to this game/map if references change? 
+            // Player holds 'game' reference, which is 'this', so it's fine.
+        }
         this.camera.follow(this.player);
 
-        // --- Load Skills from DB ---
-        skillsDB.forEach(skillData => {
-            const skill = createSkill(skillData);
-            if (skill) {
-                this.player.inventory.push(skill);
-                // Auto equip for now based on type (simple logic)
-                if (!this.player.equippedSkills[skill.type]) {
-                    this.player.equipSkill(skill);
-                }
-            }
-        });
-
+        // Entity Spawning
         this.enemies = [];
         this.chests = [];
+        this.stairs = null;
+
+        // Difficulty Multiplier
+        const difficulty = 1 + (this.level - 1) * 0.2;
+
+        // Place Stairs in a random room (not the first one)
+        const stairsRoomIndex = Math.floor(Math.random() * (this.map.rooms.length - 1)) + 1;
+        const stairsRoom = this.map.rooms[stairsRoomIndex];
+        // Center of room
+        this.stairs = new Stairs(this,
+            (stairsRoom.x + Math.floor(stairsRoom.w / 2)) * 40,
+            (stairsRoom.y + Math.floor(stairsRoom.h / 2)) * 40
+        );
+
         for (let i = 1; i < this.map.rooms.length; i++) {
             const room = this.map.rooms[i];
+
+            // Don't spawn enemy on top of stairs?
+            // Simple check: if room index matches stairs room, maybe spawn fewer or offset?
+            // For now, simple random placement.
+
             const ex = (room.x + Math.floor(room.w / 2)) * 40;
             const ey = (room.y + Math.floor(room.h / 2)) * 40;
-            this.enemies.push(new Enemy(this, ex, ey));
+
+            // basic enemy spawn
+            if (i !== stairsRoomIndex || Math.random() < 0.5) {
+                const enemy = new Enemy(this, ex, ey);
+                enemy.maxHp *= difficulty;
+                enemy.hp = enemy.maxHp;
+                enemy.speed += (this.level - 1) * 5;
+                this.enemies.push(enemy);
+            }
 
             // Spawn Chest (20% chance)
             if (Math.random() < 0.2) {
-                // Random position in room
                 const cx = (room.x + 1 + Math.floor(Math.random() * (room.w - 2))) * 40;
                 const cy = (room.y + 1 + Math.floor(Math.random() * (room.h - 2))) * 40;
                 this.chests.push(new Chest(this, cx, cy));
@@ -65,29 +117,25 @@ class Game {
         this.projectiles = [];
         this.lastTime = 0;
         this.accumulator = 0;
-        this.step = 1 / 60;
-        this.isGameOver = false;
 
-        this.uiHp = document.getElementById('hp-value');
-        this.uiLevel = document.getElementById('level-value');
-
-        this.showInventory = false;
-        initInventory(this);
+        // Show Level Title
+        this.animations.push({
+            type: 'text',
+            text: `Level ${this.level}`,
+            x: this.width / 2,
+            y: this.height / 3,
+            vx: 0, vy: -20,
+            life: 3.0,
+            maxLife: 3.0,
+            color: '#fff',
+            font: '40px bold sans-serif'
+        });
     }
 
-    spawnParticles(x, y, count, color) {
-        for (let i = 0; i < count; i++) {
-            this.animations.push({
-                type: 'particle',
-                x: x, y: y,
-                w: 4, h: 4,
-                life: 0.3 + Math.random() * 0.2,
-                maxLife: 0.5,
-                color: color,
-                vx: (Math.random() - 0.5) * 200,
-                vy: (Math.random() - 0.5) * 200
-            });
-        }
+    nextLevel() {
+        this.level++;
+        console.log(`Advancing to Level ${this.level}`);
+        this.startLevel();
     }
 
     update(dt) {
@@ -120,6 +168,19 @@ class Game {
 
         this.enemies.forEach(enemy => enemy.update(dt));
         this.enemies = this.enemies.filter(e => !e.markedForDeletion);
+
+        // Update Stairs
+        if (this.stairs) {
+            this.stairs.update(dt);
+            if (this.player.x < this.stairs.x + this.stairs.width &&
+                this.player.x + this.player.width > this.stairs.x &&
+                this.player.y < this.stairs.y + this.stairs.height &&
+                this.player.y + this.player.height > this.stairs.y) {
+
+                this.nextLevel();
+                return; // Stop update for this frame
+            }
+        }
 
         // Update Chests (Interaction)
         this.chests.forEach(chest => {
@@ -178,6 +239,7 @@ class Game {
         this.ctx.translate(-Math.floor(this.camera.x), -Math.floor(this.camera.y));
 
         this.map.draw(this.ctx, this.camera);
+        if (this.stairs) this.stairs.draw(this.ctx);
         this.chests.forEach(chest => chest.draw(this.ctx)); // Draw chests
         this.player.draw(this.ctx);
         this.enemies.forEach(enemy => enemy.draw(this.ctx));
