@@ -1,24 +1,53 @@
-# Aether Dungeon
+# Aether Dungeon (エーテルダンジョン)
 
-## How to Run
-Because this game uses modern JavaScript Modules (`import`/`export`), it **cannot** be played by simply double-clicking `index.html`. Browsers block module loading from local files for security reasons (CORS policy).
+ブラウザで遊べる、ローグライクアクションRPGです。
+広大なダンジョンを探索し、敵を倒してスキルを集め、最深部を目指しましょう。
 
-You must run a local web server to play.
+## 🎮 操作方法
 
-### Option 1: VS Code (Recommended)
-1. Install the "Live Server" extension in VS Code.
-2. Right-click `index.html` and select "Open with Live Server".
+| キー | アクション |
+| :--- | :--- |
+| **W / A / S / D** | 移動 |
+| **左クリック** | 通常攻撃 (Normal Skill) |
+| **E** | プライマリスキル (Primary Skill) |
+| **Space** | セカンダリスキル (Secondary Skill) |
+| **Q** | アルティメットスキル (Ultimate Skill) |
+| **B** | インベントリの開閉 (一時停止) |
 
-### Option 2: Python
-If you have Python installed, you can run this command in the game folder:
-```bash
-python -m http.server
-```
-Then open `http://localhost:8000` in your browser.
+## ⚔️ ゲームシステム
 
-### Option 3: Node.js
-If you have Node.js installed:
-```bash
-npx http-server
-```
-Then open the address shown (usually `http://localhost:8080`).
+### 1. ランダム生成ダンジョン
+プレイするたびに部屋の配置や敵の出現位置が変化します。
+常に新しい探索体験があなたを待っています。
+
+### 2. スキルシステム
+プレイヤーは4種類のスキルを駆使して戦います。
+スキルにはクールダウン（再使用時間）があり、画面下のスキルバーで状況を確認できます。
+
+- **Normal**: 基本攻撃。クールダウンが短い。
+- **Primary**: 主力攻撃。バランスが良い。
+- **Secondary**: 移動や補助。ダッシュなど。
+- **Ultimate**: 強力な必殺技。クールダウンが長い。
+
+### 3. 宝箱とアイテム収集
+ダンジョンの部屋にはランダムで**黄色の宝箱**が出現します。
+宝箱に触れると、ランダムなスキルを獲得できます。
+
+### 4. インベントリ (Inventory)
+**Bキー**を押すとインベントリ画面が開きます。
+獲得したスキルを自由に装備スロットにセットできます。
+
+- **装備制限**: 各スロットには、同じタイプのスキルしか装備できません（例：PrimaryスロットにはPrimaryスキルのみ）。
+- **ドラッグ＆ドロップ感覚**: バックパックのスキルをクリック選択し、装備したいスロットをクリックするだけで入れ替え可能です。
+
+## 🛠️ 技術スタック
+- HTML5 Canvas
+- Vanilla JavaScript (No Frameworks)
+- CSS3
+
+## 📦 インストールと実行
+このリポジトリをクローンし、`index.html` をブラウザで開くだけでプレイできます。
+特別なビルド手順は不要です。
+
+---
+Created by Antigravity
