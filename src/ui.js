@@ -1,29 +1,33 @@
-const skillSlots = {
-    normal: {
-        el: document.getElementById('skill-normal'),
-        icon: document.querySelector('#skill-normal .skill-icon'),
-        overlay: document.querySelector('#skill-normal .cooldown-overlay'),
-        text: document.querySelector('#skill-normal .cooldown-text')
-    },
-    primary: {
-        el: document.getElementById('skill-primary'),
-        icon: document.querySelector('#skill-primary .skill-icon'),
-        overlay: document.querySelector('#skill-primary .cooldown-overlay'),
-        text: document.querySelector('#skill-primary .cooldown-text')
-    },
-    secondary: {
-        el: document.getElementById('skill-secondary'),
-        icon: document.querySelector('#skill-secondary .skill-icon'),
-        overlay: document.querySelector('#skill-secondary .cooldown-overlay'),
-        text: document.querySelector('#skill-secondary .cooldown-text')
-    },
-    ultimate: {
-        el: document.getElementById('skill-ultimate'),
-        icon: document.querySelector('#skill-ultimate .skill-icon'),
-        overlay: document.querySelector('#skill-ultimate .cooldown-overlay'),
-        text: document.querySelector('#skill-ultimate .cooldown-text')
-    }
-};
+let skillSlots = null;
+
+function initSkillSlots() {
+    skillSlots = {
+        normal: {
+            el: document.getElementById('skill-normal'),
+            icon: document.querySelector('#skill-normal .skill-icon'),
+            overlay: document.querySelector('#skill-normal .cooldown-overlay'),
+            text: document.querySelector('#skill-normal .cooldown-text')
+        },
+        primary: {
+            el: document.getElementById('skill-primary'),
+            icon: document.querySelector('#skill-primary .skill-icon'),
+            overlay: document.querySelector('#skill-primary .cooldown-overlay'),
+            text: document.querySelector('#skill-primary .cooldown-text')
+        },
+        secondary: {
+            el: document.getElementById('skill-secondary'),
+            icon: document.querySelector('#skill-secondary .skill-icon'),
+            overlay: document.querySelector('#skill-secondary .cooldown-overlay'),
+            text: document.querySelector('#skill-secondary .cooldown-text')
+        },
+        ultimate: {
+            el: document.getElementById('skill-ultimate'),
+            icon: document.querySelector('#skill-ultimate .skill-icon'),
+            overlay: document.querySelector('#skill-ultimate .cooldown-overlay'),
+            text: document.querySelector('#skill-ultimate .cooldown-text')
+        }
+    };
+}
 
 export function drawUI(ctx, game, width, height) {
     // Canvas UI (Game Over, etc)
@@ -42,6 +46,8 @@ export function drawUI(ctx, game, width, height) {
     ctx.fillStyle = 'white';
     ctx.font = '16px sans-serif';
     ctx.fillText(`Enemies: ${game.enemies.length}`, 10, 20);
+
+    if (!skillSlots) initSkillSlots();
 
     // Update Skill DOM UI
     for (let key in game.player.equippedSkills) {
