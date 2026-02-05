@@ -66,13 +66,11 @@ const behaviors = {
         // But the effect is a closure. 
         // We will modify createSkill to bind the context properly.
 
-        if (this && this.state) { // 'this' will be the Skill instance
-            this.state.reverse = !this.state.reverse;
-            if (this.state.reverse) {
-                const temp = startAngle;
-                startAngle = endAngle;
-                endAngle = temp;
-            }
+        // Randomly reverse the slash direction
+        if (Math.random() < 0.5) {
+            const temp = startAngle;
+            startAngle = endAngle;
+            endAngle = temp;
         }
 
         game.animations.push({
