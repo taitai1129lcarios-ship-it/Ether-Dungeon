@@ -51,13 +51,15 @@ export const skillsDB = [
         type: 'ultimate',
         icon: 'assets/icon_spin.png',
         cooldown: 5.0,
-        behavior: 'area_blast',
+        behavior: 'spiral_out',
         params: {
-            damage: 100,
-            range: 120,
+            damage: 60,
+            range: 200, // Not used directly by behavior but good metadata
             color: 'cyan',
-            duration: 0.4,
-            particleCount: 16
+            duration: 1.5,
+            count: 8,
+            speed: 150,
+            rotationSpeed: 4
         }
     }
 ];

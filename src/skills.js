@@ -201,6 +201,51 @@ const behaviors = {
                 game.spawnParticles(ex, ey, 10, '#ff0000');
             }
         });
+    },
+    'spiral_out': (user, game, params) => {
+        const center = { x: user.x + user.width / 2, y: user.y + user.height / 2 };
+        const count = params.count || 8;
+        const speed = params.speed || 200;
+        const rotationSpeed = params.rotationSpeed || 5;
+
+        for (let i = 0; i < count; i++) {
+            const startAngle = (i / count) * Math.PI * 2;
+
+            game.projectiles.push({
+                x: center.x,
+                y: center.y,
+                baseX: center.x, // Store origin
+                baseY: center.y,
+                w: 10, h: 10,
+                angle: startAngle,
+                radius: 10, // Start slightly out
+                life: params.duration,
+                color: params.color,
+                damage: params.damage,
+                update: function (dt) {
+                    this.life -= dt;
+
+                    // Spiral logic
+                    this.radius += speed * dt; // Expand radius
+                    this.angle += rotationSpeed * dt; // Rotate
+
+                    this.x = this.baseX + Math.cos(this.angle) * this.radius;
+                    this.y = this.baseY + Math.sin(this.angle) * this.radius;
+
+                    // Trail
+                    if (Math.random() < 0.3) {
+                        game.animations.push({
+                            type: 'particle',
+                            x: this.x, y: this.y,
+                            w: 4, h: 4,
+                            life: 0.3, maxLife: 0.3,
+                            color: this.color,
+                            vx: 0, vy: 0
+                        });
+                    }
+                }
+            });
+        }
     }
 };
 
