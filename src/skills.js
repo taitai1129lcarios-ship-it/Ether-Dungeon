@@ -96,14 +96,29 @@ const behaviors = {
     },
 
     'projectile': (user, game, params) => {
+        let w = params.size;
+        let h = params.size;
+
+        // Support for directional shapes (e.g. needles)
+        if (params.length && params.thickness) {
+            if (user.facing === 'left' || user.facing === 'right') {
+                w = params.length;
+                h = params.thickness;
+            } else {
+                w = params.thickness;
+                h = params.length;
+            }
+        }
+
         const proj = {
-            x: user.x + user.width / 2 - params.size / 2,
-            y: user.y + user.height / 2 - params.size / 2,
-            w: params.size, h: params.size,
+            x: user.x + user.width / 2 - w / 2,
+            y: user.y + user.height / 2 - h / 2,
+            w: w, h: h,
             vx: 0, vy: 0,
             life: params.life,
             color: params.color,
             damage: params.damage,
+            shape: params.shape, // Pass shape
             update: function (dt) {
                 this.x += this.vx * dt;
                 this.y += this.vy * dt;

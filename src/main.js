@@ -1,6 +1,6 @@
 import { InputHandler, Camera, Map, Entity } from './utils.js';
 import { Player } from './player.js';
-import { Enemy, Chest } from './entities.js';
+import { Enemy, Slime, Bat, Goblin, Chest } from './entities.js';
 import { createSkill } from './skills.js';
 import { drawUI } from './ui.js';
 import { initInventory, renderInventory } from './inventory.js';
@@ -22,7 +22,6 @@ class Game {
     }
 
     init() {
-        this.level = 1;
         // Larger Map: 80x60 tiles (3200x2400 pixels)
         this.map = new Map(80, 60, 40);
         this.map.generate();
@@ -51,7 +50,16 @@ class Game {
             const room = this.map.rooms[i];
             const ex = (room.x + Math.floor(room.w / 2)) * 40;
             const ey = (room.y + Math.floor(room.h / 2)) * 40;
-            this.enemies.push(new Enemy(this, ex, ey));
+
+            // Random Enemy Type
+            const rand = Math.random();
+            if (rand < 0.5) {
+                this.enemies.push(new Slime(this, ex, ey));
+            } else if (rand < 0.8) {
+                this.enemies.push(new Goblin(this, ex, ey));
+            } else {
+                this.enemies.push(new Bat(this, ex, ey));
+            }
 
             // Spawn Chest (20% chance)
             if (Math.random() < 0.2) {
@@ -117,14 +125,6 @@ class Game {
             this.isGameOver = true;
         }
 
-        // Check Stairs Collision
-        const tx = Math.floor((this.player.x + this.player.width / 2) / 40);
-        const ty = Math.floor((this.player.y + this.player.height / 2) / 40);
-        if (this.map.tiles[ty] && this.map.tiles[ty][tx] === 2) {
-            this.nextLevel();
-            return; // Skip rest of update
-        }
-
         this.camera.follow(this.player);
 
         this.enemies.forEach(enemy => enemy.update(dt));
@@ -175,62 +175,6 @@ class Game {
 
 
         if (this.uiHp) this.uiHp.textContent = Math.ceil(this.player.hp);
-        if (this.uiLevel) this.uiLevel.textContent = this.level;
-    }
-
-    nextLevel() {
-        this.level++;
-        console.log(`Advancing to Level ${this.level}`);
-
-        // Regenerate Map
-        this.map = new Map(80, 60, 40);
-        this.map.generate();
-
-        // Reset Player Position to new start
-        const startRoom = this.map.rooms[0];
-        this.player.x = (startRoom.x + 1) * 40;
-        this.player.y = (startRoom.y + 1) * 40;
-
-        // Spawn Enemies (Increase difficulty slightly?)
-        this.enemies = [];
-        this.chests = [];
-        const enemyCountMultiplier = 1 + (this.level * 0.1);
-
-        for (let i = 1; i < this.map.rooms.length; i++) {
-            const room = this.map.rooms[i];
-            const ex = (room.x + Math.floor(room.w / 2)) * 40;
-            const ey = (room.y + Math.floor(room.h / 2)) * 40;
-
-            // Maybe spawn more?
-            this.enemies.push(new Enemy(this, ex, ey));
-            if (Math.random() < 0.3 * enemyCountMultiplier) {
-                // Extra enemy
-                this.enemies.push(new Enemy(this, ex + 20, ey + 20));
-            }
-
-            // Spawn Chest (20% chance)
-            if (Math.random() < 0.2) {
-                // Random position in room
-                const cx = (room.x + 1 + Math.floor(Math.random() * (room.w - 2))) * 40;
-                const cy = (room.y + 1 + Math.floor(Math.random() * (room.h - 2))) * 40;
-                this.chests.push(new Chest(this, cx, cy));
-            }
-        }
-
-        this.projectiles = [];
-        // Keep animations? Maybe clear them.
-        this.animations = [];
-
-        // Notification
-        this.animations.push({
-            type: 'text',
-            text: `Level ${this.level}`,
-            x: this.player.x, y: this.player.y - 40,
-            vx: 0, vy: -50,
-            life: 2.0, maxLife: 2.0,
-            color: '#ffff00',
-            font: '30px sans-serif'
-        });
     }
 
     draw() {
@@ -250,7 +194,36 @@ class Game {
         // Draw Projectiles
         this.projectiles.forEach(p => {
             this.ctx.fillStyle = p.color;
-            this.ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.w, p.h);
+            if (p.shape === 'triangle') {
+                // Determine orientation based on dimensions (AABB logic)
+                this.ctx.beginPath();
+                if (p.w > p.h) {
+                    // Horizontal
+                    if (p.vx > 0) { // Right
+                        this.ctx.moveTo(Math.floor(p.x), Math.floor(p.y));
+                        this.ctx.lineTo(Math.floor(p.x + p.w), Math.floor(p.y + p.h / 2));
+                        this.ctx.lineTo(Math.floor(p.x), Math.floor(p.y + p.h));
+                    } else { // Left
+                        this.ctx.moveTo(Math.floor(p.x + p.w), Math.floor(p.y));
+                        this.ctx.lineTo(Math.floor(p.x), Math.floor(p.y + p.h / 2));
+                        this.ctx.lineTo(Math.floor(p.x + p.w), Math.floor(p.y + p.h));
+                    }
+                } else {
+                    // Vertical
+                    if (p.vy > 0) { // Down
+                        this.ctx.moveTo(Math.floor(p.x), Math.floor(p.y));
+                        this.ctx.lineTo(Math.floor(p.x + p.w / 2), Math.floor(p.y + p.h));
+                        this.ctx.lineTo(Math.floor(p.x + p.w), Math.floor(p.y));
+                    } else { // Up
+                        this.ctx.moveTo(Math.floor(p.x), Math.floor(p.y + p.h));
+                        this.ctx.lineTo(Math.floor(p.x + p.w / 2), Math.floor(p.y));
+                        this.ctx.lineTo(Math.floor(p.x + p.w), Math.floor(p.y + p.h));
+                    }
+                }
+                this.ctx.fill();
+            } else {
+                this.ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.w, p.h);
+            }
         });
 
         // Draw Animations

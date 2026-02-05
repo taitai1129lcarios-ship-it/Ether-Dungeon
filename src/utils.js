@@ -87,15 +87,6 @@ export class Map {
                 this.rooms.push(newRoom);
             }
         }
-
-        // Place Stairs in the last room (furthest from start roughly)
-        if (this.rooms.length > 0) {
-            const lastRoom = this.rooms[this.rooms.length - 1];
-            const sx = lastRoom.x + Math.floor(lastRoom.w / 2);
-            const sy = lastRoom.y + Math.floor(lastRoom.h / 2);
-            this.tiles[sy][sx] = 2; // 2 = Stairs
-            this.stairs = { x: sx * this.tileSize, y: sy * this.tileSize }; // Store pixel pos for easy check/debug
-        }
     }
 
     createRoom(room) {
@@ -138,10 +129,9 @@ export class Map {
 
         for (let y = Math.max(0, startY); y < Math.min(this.height, endY); y++) {
             for (let x = Math.max(0, startX); x < Math.min(this.width, endX); x++) {
-                const tile = this.tiles[y][x];
-                if (tile === 1) {
+                if (this.tiles[y][x] === 1) {
                     // Check if tile below is floor (to determine front face)
-                    const isFrontWall = y < this.height - 1 && this.tiles[y + 1][x] !== 1; // Modified check to include 0 and 2
+                    const isFrontWall = y < this.height - 1 && this.tiles[y + 1][x] === 0;
 
                     if (isFrontWall) {
                         // Draw Wall Face (Image Texture)
@@ -159,21 +149,6 @@ export class Map {
                         ctx.strokeStyle = '#222';
                         ctx.strokeRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
                     }
-                } else if (tile === 2) {
-                    // Draw Stairs
-                    ctx.fillStyle = '#111'; // Dark hole background
-                    ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
-
-                    // Draw Steps
-                    ctx.fillStyle = '#555';
-                    for (let i = 0; i < 4; i++) {
-                        ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize) + i * 10, this.tileSize, 5);
-                    }
-                    // Highlight
-                    ctx.strokeStyle = '#ffff00';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
-
                 } else {
                     ctx.fillStyle = '#222';
                     ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);

@@ -68,6 +68,9 @@ export function renderInventory(game) {
     const grid = document.getElementById('backpack-grid');
     grid.innerHTML = '';
 
+    // Update Detail Panel
+    updateDetailPanel(selectedSkill);
+
     game.player.inventory.forEach(skill => {
         const item = document.createElement('div');
         item.className = 'inventory-item';
@@ -76,7 +79,7 @@ export function renderInventory(game) {
         if (skill.icon) {
             iconHtml = `<img src="${skill.icon}" class="skill-icon">`;
         }
-        item.innerHTML = `${iconHtml}<span>${skill.name}</span>`;
+        item.innerHTML = `${iconHtml}`; // Icon only
 
         if (selectedSkill === skill) {
             item.classList.add('selected');
@@ -89,4 +92,37 @@ export function renderInventory(game) {
 
         grid.appendChild(item);
     });
+}
+
+function updateDetailPanel(skill) {
+    const nameEl = document.getElementById('detail-name');
+    const infoEl = document.getElementById('detail-info');
+    const descEl = document.getElementById('detail-desc');
+
+    if (!skill) {
+        nameEl.textContent = 'スキルを選択してください';
+        infoEl.innerHTML = '';
+        descEl.textContent = '';
+        return;
+    }
+
+    nameEl.textContent = skill.name;
+
+    const typeMap = {
+        'normal': '通常',
+        'primary': 'メイン',
+        'secondary': 'サブ',
+        'ultimate': '必殺技'
+    };
+
+    let infoHtml = `タイプ: ${typeMap[skill.type] || skill.type}<br>`;
+    infoHtml += `クールダウン: ${skill.cooldown}秒<br>`;
+
+    // Add dmg/speed if available
+    if (skill.params && skill.params.damage) {
+        infoHtml += `威力: ${skill.params.damage}<br>`;
+    }
+
+    infoEl.innerHTML = infoHtml;
+    descEl.textContent = skill.description || '説明がありません。';
 }

@@ -2,18 +2,26 @@ import { Entity } from './utils.js';
 import { skillsDB } from '../data/skills_db.js';
 import { createSkill } from './skills.js';
 
-const enemyTexture = createSlimeTexture();
+const textures = {
+    slime: 'assets/slime.png',
+    bat: 'assets/bat.png',
+    goblin: 'assets/goblin.png'
+};
+
+// --- Enemy Classes ---
 
 export class Enemy extends Entity {
-    constructor(game, x, y) {
-        super(game, x, y, 32, 32, '#ff4444', 50); // Increased size to 32x32
-        this.speed = 90;
-        this.attackCooldown = 0;
+    constructor(game, x, y, width, height, color, hp, speed, textureKey) {
+        super(game, x, y, width, height, color, hp);
+        this.speed = speed;
         this.image = new Image();
-        this.image.src = enemyTexture;
+        if (textures[textureKey]) {
+            this.image.src = textures[textureKey];
+        }
     }
 
     update(dt) {
+        // Simple tracking AI
         const dx = this.game.player.x - this.x;
         const dy = this.game.player.y - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -27,29 +35,73 @@ export class Enemy extends Entity {
         }
 
         super.update(dt);
+        this.checkPlayerCollision();
+    }
 
+    checkPlayerCollision() {
         if (this.x < this.game.player.x + this.game.player.width &&
             this.x + this.width > this.game.player.x &&
             this.y < this.game.player.y + this.game.player.height &&
             this.y + this.height > this.game.player.y) {
-            this.game.player.takeDamage(10);
+            this.game.player.takeDamage(10); // Base contact damage
+        }
+    }
+
+    takeDamage(amount) {
+        // No invulnerability check for enemies so they can take rapid damage
+        this.hp -= amount;
+
+        // Spawn Damage Text
+        this.game.animations.push({
+            type: 'text',
+            text: amount,
+            x: this.x + this.width / 2,
+            y: this.y,
+            vx: (Math.random() - 0.5) * 50,
+            vy: -100,
+            life: 0.8,
+            maxLife: 0.8,
+            color: '#fff',
+            font: '20px sans-serif'
+        });
+
+        if (this.hp <= 0) {
+            this.hp = 0;
+            this.markedForDeletion = true;
         }
     }
 
     draw(ctx) {
         if (this.image.complete && this.image.naturalWidth !== 0) {
             ctx.drawImage(this.image, Math.floor(this.x), Math.floor(this.y), this.width, this.height);
-
-            // Draw HP Bar above (since we override super.draw)
+            // Draw HP Bar
             if (this.hp < this.maxHp) {
                 ctx.fillStyle = 'red';
-                ctx.fillRect(Math.floor(this.x), Math.floor(this.y - 10), this.width, 5);
+                ctx.fillRect(Math.floor(this.x), Math.floor(this.y - 6), this.width, 4);
                 ctx.fillStyle = 'green';
-                ctx.fillRect(Math.floor(this.x), Math.floor(this.y - 10), this.width * (this.hp / this.maxHp), 5);
+                ctx.fillRect(Math.floor(this.x), Math.floor(this.y - 6), this.width * (this.hp / this.maxHp), 4);
             }
         } else {
             super.draw(ctx);
         }
+    }
+}
+
+export class Slime extends Enemy {
+    constructor(game, x, y) {
+        super(game, x, y, 32, 32, '#ff4444', 50, 90, 'slime');
+    }
+}
+
+export class Bat extends Enemy {
+    constructor(game, x, y) {
+        super(game, x, y, 24, 24, '#4a00e0', 30, 150, 'bat');
+    }
+}
+
+export class Goblin extends Enemy {
+    constructor(game, x, y) {
+        super(game, x, y, 32, 32, '#33cc33', 80, 60, 'goblin');
     }
 }
 
@@ -106,59 +158,4 @@ export class Chest extends Entity {
             this.game.spawnParticles(this.x + this.width / 2, this.y + this.height / 2, 20, '#ffff00');
         }
     }
-}
-
-// Helper to generate a procedural texture
-function createSlimeTexture() {
-    const size = 32;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-
-    // Draw Slime
-    const cx = size / 2;
-    const cy = size / 2;
-    const radius = size * 0.4;
-
-    // Body (Blob shape)
-    ctx.fillStyle = '#8A2BE2'; // BlueViolet
-    ctx.beginPath();
-    // Top arc
-    ctx.arc(cx, cy, radius, Math.PI, 0);
-    // Bottom slightly flatter
-    ctx.bezierCurveTo(cx + radius, cy + radius * 1.5, cx - radius, cy + radius * 1.5, cx - radius, cy);
-    ctx.fill();
-
-    // Highlight/Shine
-    ctx.fillStyle = '#D8BFD8'; // Thistle (Light Purple)
-    ctx.beginPath();
-    ctx.ellipse(cx - radius * 0.4, cy - radius * 0.4, 3, 2, Math.PI / 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Eyes
-    ctx.fillStyle = 'white';
-    const eyeOffsetX = radius * 0.4;
-    const eyeOffsetY = -2;
-
-    // Left Eye
-    ctx.beginPath();
-    ctx.arc(cx - eyeOffsetX, cy + eyeOffsetY, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Right Eye
-    ctx.beginPath();
-    ctx.arc(cx + eyeOffsetX, cy + eyeOffsetY, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Pupils
-    ctx.fillStyle = 'black';
-    ctx.beginPath();
-    ctx.arc(cx - eyeOffsetX, cy + eyeOffsetY, 1.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(cx + eyeOffsetX, cy + eyeOffsetY, 1.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    return canvas.toDataURL('image/png');
 }

@@ -130,8 +130,9 @@ canvas {
     border: 2px solid #555;
     border-radius: 10px;
     padding: 20px;
-    width: 600px;
-    max-width: 90%;
+    width: 800px;
+    /* Wider for 3 columns */
+    max-width: 95%;
     color: white;
     box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
     display: flex;
@@ -150,10 +151,12 @@ canvas {
     display: flex;
     gap: 20px;
     flex: 1;
+    min-height: 300px;
 }
 
 .equipped-section,
-.backpack-section {
+.backpack-section,
+.description-section {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -190,12 +193,11 @@ canvas {
 }
 
 .inventory-item .skill-icon {
-    width: 32px;
-    height: 32px;
-    display: inline-block;
-    vertical-align: middle;
-    margin-right: 8px;
-    margin-bottom: 0;
+    width: 48px;
+    /* Bigger icons in backpack */
+    height: 48px;
+    display: block;
+    margin: 0 auto;
 }
 
 .equip-slot {
@@ -251,8 +253,10 @@ canvas {
 
 #backpack-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, 60px);
+    gap: 10px;
+    justify-content: center;
+    /* Center the grid in the panel */
     background-color: #1a1a1a;
     padding: 10px;
     border-radius: 5px;
@@ -270,22 +274,52 @@ canvas {
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 10px;
-    text-align: center;
     cursor: pointer;
     user-select: none;
     padding: 2px;
-    word-break: break-word;
+    transition: transform 0.1s, border-color 0.1s;
 }
 
 .inventory-item:hover {
     border-color: #fff;
+    transform: scale(1.05);
 }
 
 .inventory-item.selected {
     border-color: #ffd700;
     background-color: #444;
-    box-shadow: 0 0 5px #ffd700;
+    box-shadow: 0 0 8px #ffd700;
+}
+
+#skill-detail-panel {
+    background-color: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 5px;
+    padding: 15px;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+#detail-name {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffd700;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #444;
+    padding-bottom: 5px;
+}
+
+#detail-info {
+    font-size: 14px;
+    color: #aaa;
+    margin-bottom: 10px;
+    line-height: 1.6;
+}
+
+#detail-desc {
+    font-size: 14px;
+    color: #ddd;
+    line-height: 1.5;
 }
 
 .inventory-footer {

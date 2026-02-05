@@ -45,43 +45,51 @@
         <!-- Inventory Screen -->
         <div id="inventory-screen" style="display: none;">
             <div class="inventory-container">
-                <h2>Inventory</h2>
+                <h2>インベントリ</h2>
                 <div class="inventory-content">
                     <div class="equipped-section">
-                        <h3>Equipped</h3>
+                        <h3>装備中</h3>
                         <div class="equip-slots">
                             <div class="equip-slot" data-type="normal">
-                                <div class="slot-label">Normal (Space)</div>
+                                <div class="slot-label">通常 (Space)</div>
                                 <img class="skill-icon" style="display:none">
-                                <div class="slot-content" id="equip-normal">Empty</div>
+                                <div class="slot-content" id="equip-normal">なし</div>
                             </div>
                             <div class="equip-slot" data-type="primary">
-                                <div class="slot-label">Primary (E)</div>
+                                <div class="slot-label">メイン (E)</div>
                                 <img class="skill-icon" style="display:none">
-                                <div class="slot-content" id="equip-primary">Empty</div>
+                                <div class="slot-content" id="equip-primary">なし</div>
                             </div>
                             <div class="equip-slot" data-type="secondary">
-                                <div class="slot-label">Secondary (Shift)</div>
+                                <div class="slot-label">サブ (Shift)</div>
                                 <img class="skill-icon" style="display:none">
-                                <div class="slot-content" id="equip-secondary">Empty</div>
+                                <div class="slot-content" id="equip-secondary">なし</div>
                             </div>
                             <div class="equip-slot" data-type="ultimate">
-                                <div class="slot-label">Ultimate (Q)</div>
+                                <div class="slot-label">必殺技 (Q)</div>
                                 <img class="skill-icon" style="display:none">
-                                <div class="slot-content" id="equip-ultimate">Empty</div>
+                                <div class="slot-content" id="equip-ultimate">なし</div>
                             </div>
                         </div>
                     </div>
                     <div class="backpack-section">
-                        <h3>Backpack</h3>
+                        <h3>所持スキル</h3>
                         <div id="backpack-grid">
                             <!-- Items will be injected here -->
                         </div>
                     </div>
+                    <div class="description-section">
+                        <h3>詳細</h3>
+                        <div id="skill-detail-panel">
+                            <div id="detail-name">スキルを選択してください</div>
+                            <div id="detail-info"></div>
+                            <div id="detail-desc"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="inventory-footer">
-                    <p>Click a skill in Backpack, then click an Equipped slot to equip.</p>
-                    <button id="close-inventory">Close (B)</button>
+                    <p>スキルをクリックして選択し、装備欄をクリックして装備します。</p>
+                    <button id="close-inventory">閉じる (B)</button>
                 </div>
             </div>
         </div>
