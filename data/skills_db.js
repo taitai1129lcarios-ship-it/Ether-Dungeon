@@ -3,7 +3,7 @@ export const skillsDB = [
         id: 'slash',
         name: 'Slash',
         type: 'normal',
-        cooldown: 0.4,
+        cooldown: 0.2,
         behavior: 'arc_slash',
         params: {
             damage: 25,
