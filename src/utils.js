@@ -128,8 +128,32 @@ export class Map {
         for (let y = Math.max(0, startY); y < Math.min(this.height, endY); y++) {
             for (let x = Math.max(0, startX); x < Math.min(this.width, endX); x++) {
                 if (this.tiles[y][x] === 1) {
-                    ctx.fillStyle = '#333';
-                    ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
+                    // Check if tile below is floor (to determine front face)
+                    const isFrontWall = y < this.height - 1 && this.tiles[y + 1][x] === 0;
+
+                    if (isFrontWall) {
+                        // Draw Wall Face (Brick pattern)
+                        ctx.fillStyle = '#666'; // Lighter grey base
+                        ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
+
+                        // Brick pattern
+                        ctx.fillStyle = '#444'; // Darker for bricks/grout lines
+                        ctx.lineWidth = 2;
+
+                        // Horizontal lines
+                        ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, 2);
+                        ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize) + 20, this.tileSize, 2);
+
+                        // Vertical lines (staggered)
+                        ctx.fillRect(Math.floor(x * this.tileSize) + 20, Math.floor(y * this.tileSize), 2, 20);
+                        ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize) + 20, 2, 20); // Edge
+                    } else {
+                        // Draw Wall Top (Roof)
+                        ctx.fillStyle = '#333';
+                        ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
+                        ctx.strokeStyle = '#222';
+                        ctx.strokeRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
+                    }
                 } else {
                     ctx.fillStyle = '#222';
                     ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
