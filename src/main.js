@@ -41,6 +41,15 @@ class Game {
         // Map Generation
         this.map = new Map(80, 60, 40);
         this.map.generate();
+
+        // Retry if map is too small
+        let attempts = 0;
+        while (this.map.rooms.length < 2 && attempts < 5) {
+            this.map = new Map(80, 60, 40);
+            this.map.generate();
+            attempts++;
+        }
+
         this.camera = new Camera(this.width, this.height, this.map.pixelWidth, this.map.pixelHeight);
 
         // Player Placement
@@ -78,13 +87,15 @@ class Game {
         const difficulty = 1 + (this.level - 1) * 0.2;
 
         // Place Stairs in a random room (not the first one)
-        const stairsRoomIndex = Math.floor(Math.random() * (this.map.rooms.length - 1)) + 1;
-        const stairsRoom = this.map.rooms[stairsRoomIndex];
-        // Center of room
-        this.stairs = new Stairs(this,
-            (stairsRoom.x + Math.floor(stairsRoom.w / 2)) * 40,
-            (stairsRoom.y + Math.floor(stairsRoom.h / 2)) * 40
-        );
+        if (this.map.rooms.length > 1) {
+            const stairsRoomIndex = Math.floor(Math.random() * (this.map.rooms.length - 1)) + 1;
+            const stairsRoom = this.map.rooms[stairsRoomIndex];
+            // Center of room
+            this.stairs = new Stairs(this,
+                (stairsRoom.x + Math.floor(stairsRoom.w / 2)) * 40,
+                (stairsRoom.y + Math.floor(stairsRoom.h / 2)) * 40
+            );
+        }
 
         for (let i = 1; i < this.map.rooms.length; i++) {
             const room = this.map.rooms[i];
