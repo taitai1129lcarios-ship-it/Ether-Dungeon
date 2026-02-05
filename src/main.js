@@ -191,7 +191,14 @@ class Game {
         // Draw Animations
         this.animations.forEach(a => {
             this.ctx.save();
-            const alpha = a.life / a.maxLife; // Fade out
+            let alpha = a.life / a.maxLife; // Linear 0 to 1
+
+            // For slash, stay opaque longer
+            if (a.type === 'slash') {
+                // Fade out only in the last 30% of life
+                alpha = Math.min(1, alpha * 3);
+            }
+
             this.ctx.globalAlpha = Math.max(0, alpha);
 
             if (a.type === 'slash') {
