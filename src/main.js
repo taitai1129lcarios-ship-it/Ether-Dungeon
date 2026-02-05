@@ -34,6 +34,10 @@ class Game {
         this.showInventory = false;
         initInventory(this);
 
+        this.lastTime = 0;
+        this.accumulator = 0;
+        this.step = 1 / 60;
+
         this.startLevel();
     }
 
@@ -134,8 +138,6 @@ class Game {
 
         this.animations = [];
         this.projectiles = [];
-        this.lastTime = 0;
-        this.accumulator = 0;
 
         // Show Level Title
         this.animations.push({
