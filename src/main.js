@@ -127,7 +127,7 @@ class Game {
         // Update Animations
         this.animations.forEach(a => {
             a.life -= dt;
-            if (a.type === 'particle') {
+            if (a.type === 'particle' || a.type === 'text') {
                 a.x += a.vx * dt;
                 a.y += a.vy * dt;
             }
@@ -229,6 +229,13 @@ class Game {
                 this.ctx.beginPath();
                 this.ctx.arc(a.x, a.y, currentRadius, 0, Math.PI * 2);
                 this.ctx.stroke();
+            } else if (a.type === 'text') {
+                this.ctx.font = a.font || '16px sans-serif';
+                this.ctx.fillStyle = a.color || 'white';
+                this.ctx.strokeStyle = 'black';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeText(a.text, a.x, a.y);
+                this.ctx.fillText(a.text, a.x, a.y);
             } else if (!a.type) {
                 this.ctx.fillStyle = a.color || 'white';
                 this.ctx.fillRect(Math.floor(a.x), Math.floor(a.y), a.w, a.h);

@@ -184,6 +184,21 @@ export class Entity {
     takeDamage(amount) {
         if (this.invulnerable > 0) return;
         this.hp -= amount;
+
+        // Spawn Damage Text
+        this.game.animations.push({
+            type: 'text',
+            text: amount,
+            x: this.x + this.width / 2,
+            y: this.y,
+            vx: (Math.random() - 0.5) * 50,
+            vy: -100,
+            life: 0.8,
+            maxLife: 0.8,
+            color: '#fff',
+            font: '20px sans-serif'
+        });
+
         if (this.hp <= 0) {
             this.hp = 0;
             this.markedForDeletion = true;
