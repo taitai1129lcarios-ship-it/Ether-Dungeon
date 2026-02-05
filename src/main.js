@@ -92,7 +92,7 @@ class Game {
 
     update(dt) {
         // Toggle Inventory
-        if (this.input.keys['b'] || this.input.keys['B']) {
+        if (this.input.isDown('KeyB')) {
             if (!this.input.bPressed) {
                 this.showInventory = !this.showInventory;
                 this.input.bPressed = true;

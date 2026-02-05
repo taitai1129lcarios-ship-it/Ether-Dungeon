@@ -27,10 +27,10 @@ export class Player extends Entity {
         this.vx = 0;
         this.vy = 0;
 
-        if (this.game.input.isDown('ArrowUp') || this.game.input.isDown('w')) { this.vy = -this.speed; this.facing = 'up'; }
-        if (this.game.input.isDown('ArrowDown') || this.game.input.isDown('s')) { this.vy = this.speed; this.facing = 'down'; }
-        if (this.game.input.isDown('ArrowLeft') || this.game.input.isDown('a')) { this.vx = -this.speed; this.facing = 'left'; }
-        if (this.game.input.isDown('ArrowRight') || this.game.input.isDown('d')) { this.vx = this.speed; this.facing = 'right'; }
+        if (this.game.input.isDown('ArrowUp') || this.game.input.isDown('KeyW')) { this.vy = -this.speed; this.facing = 'up'; }
+        if (this.game.input.isDown('ArrowDown') || this.game.input.isDown('KeyS')) { this.vy = this.speed; this.facing = 'down'; }
+        if (this.game.input.isDown('ArrowLeft') || this.game.input.isDown('KeyA')) { this.vx = -this.speed; this.facing = 'left'; }
+        if (this.game.input.isDown('ArrowRight') || this.game.input.isDown('KeyD')) { this.vx = this.speed; this.facing = 'right'; }
 
         super.update(dt);
 
@@ -42,16 +42,16 @@ export class Player extends Entity {
         }
 
         // Input handling for skills
-        if (this.game.input.isDown(' ')) {
+        if (this.game.input.isDown('Space')) {
             this.useSkill(SkillType.NORMAL);
         }
-        if (this.game.input.isDown('e') || this.game.input.isDown('E')) {
+        if (this.game.input.isDown('KeyE')) {
             this.useSkill(SkillType.PRIMARY);
         }
-        if (this.game.input.isDown('Shift')) {
+        if (this.game.input.isDown('ShiftLeft') || this.game.input.isDown('ShiftRight')) {
             this.useSkill(SkillType.SECONDARY);
         }
-        if (this.game.input.isDown('q') || this.game.input.isDown('Q')) {
+        if (this.game.input.isDown('KeyQ')) {
             this.useSkill(SkillType.ULTIMATE);
         }
     }
