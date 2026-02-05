@@ -1,28 +1,24 @@
 const skillSlots = {
     normal: {
         el: document.getElementById('skill-normal'),
-        name: document.querySelector('#skill-normal .skill-name'),
         icon: document.querySelector('#skill-normal .skill-icon'),
         overlay: document.querySelector('#skill-normal .cooldown-overlay'),
         text: document.querySelector('#skill-normal .cooldown-text')
     },
     primary: {
         el: document.getElementById('skill-primary'),
-        name: document.querySelector('#skill-primary .skill-name'),
         icon: document.querySelector('#skill-primary .skill-icon'),
         overlay: document.querySelector('#skill-primary .cooldown-overlay'),
         text: document.querySelector('#skill-primary .cooldown-text')
     },
     secondary: {
         el: document.getElementById('skill-secondary'),
-        name: document.querySelector('#skill-secondary .skill-name'),
         icon: document.querySelector('#skill-secondary .skill-icon'),
         overlay: document.querySelector('#skill-secondary .cooldown-overlay'),
         text: document.querySelector('#skill-secondary .cooldown-text')
     },
     ultimate: {
         el: document.getElementById('skill-ultimate'),
-        name: document.querySelector('#skill-ultimate .skill-name'),
         icon: document.querySelector('#skill-ultimate .skill-icon'),
         overlay: document.querySelector('#skill-ultimate .cooldown-overlay'),
         text: document.querySelector('#skill-ultimate .cooldown-text')
@@ -55,14 +51,12 @@ export function drawUI(ctx, game, width, height) {
         if (slot) {
             if (skill) {
                 // Update Name (optimization: only if changed? checking textContent is fast enough)
-                if (slot.name.textContent !== skill.name) {
-                    slot.name.textContent = skill.name;
-                    if (skill.icon) {
-                        slot.icon.src = skill.icon;
-                        slot.icon.style.display = 'block';
-                    } else {
-                        slot.icon.style.display = 'none';
-                    }
+                // Update Icon
+                if (skill.icon) {
+                    slot.icon.src = skill.icon;
+                    slot.icon.style.display = 'block';
+                } else {
+                    slot.icon.style.display = 'none';
                 }
 
                 // Update Cooldown
@@ -78,7 +72,6 @@ export function drawUI(ctx, game, width, height) {
                     slot.el.classList.add('active');
                 }
             } else {
-                slot.name.textContent = "Empty";
                 slot.icon.style.display = 'none';
                 slot.overlay.style.height = '0%';
                 slot.text.style.display = 'none';

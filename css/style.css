@@ -83,14 +83,7 @@ canvas {
     z-index: 2;
 }
 
-.skill-name {
-    font-size: 10px;
-    text-align: center;
-    z-index: 1;
-    padding: 0 2px;
-    word-break: break-all;
-    line-height: 1.1;
-}
+
 
 .cooldown-overlay {
     position: absolute;
