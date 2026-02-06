@@ -28,7 +28,7 @@ class Game {
 
         this.camera = new Camera(this.width, this.height, this.map.pixelWidth, this.map.pixelHeight);
 
-        const startRoom = this.map.rooms[0];
+        const startRoom = this.map.rooms.find(r => r.type === 'normal') || this.map.rooms[0];
         this.player = new Player(this, (startRoom.x + 1) * 40, (startRoom.y + 1) * 40);
         this.camera.follow(this.player);
 
@@ -46,12 +46,39 @@ class Game {
 
         this.enemies = [];
         this.chests = [];
-        for (let i = 1; i < this.map.rooms.length; i++) {
+
+        for (let i = 0; i < this.map.rooms.length; i++) { // Include room 0 now as it might be treasure
             const room = this.map.rooms[i];
+
+            // Skip spawning enemies in the very first room (Start Room) 
+            // We'll treat index 0 as start room? Or we should pick a start room.
+            // Current map gen: placePresetRoom (Treasure) is first added?
+            // Wait, generate() calls: place preset, then random.
+            // So rooms[0] is likely the Treasure Room.
+
+            if (room.type === 'treasure') {
+                // Spawn Chest in center
+                const cx = (room.x + Math.floor(room.w / 2)) * 40;
+                const cy = (room.y + Math.floor(room.h / 2)) * 40;
+                this.chests.push(new Chest(this, cx, cy));
+
+                // Maybe a guardian enemy?
+                const gx = (room.x + Math.floor(room.w / 2) + 1) * 40;
+                const gy = (room.y + Math.floor(room.h / 2)) * 40;
+                this.enemies.push(new Goblin(this, gx, gy));
+
+                continue; // Done for this room
+            }
+
+            // Normal Rooms
+            // Skip player start room (usually index 1 if 0 is treasure?)
+            // Let's spawn player in the LAST room generated to be far from treasure?
+            // Or just spawn in room[1].
+
+            // Random Enemy Type
             const ex = (room.x + Math.floor(room.w / 2)) * 40;
             const ey = (room.y + Math.floor(room.h / 2)) * 40;
 
-            // Random Enemy Type
             const rand = Math.random();
             if (rand < 0.5) {
                 this.enemies.push(new Slime(this, ex, ey));
@@ -61,9 +88,8 @@ class Game {
                 this.enemies.push(new Bat(this, ex, ey));
             }
 
-            // Spawn Chest (20% chance)
-            if (Math.random() < 0.2) {
-                // Random position in room
+            // Low chance for extra chest in normal rooms
+            if (Math.random() < 0.1) {
                 const cx = (room.x + 1 + Math.floor(Math.random() * (room.w - 2))) * 40;
                 const cy = (room.y + 1 + Math.floor(Math.random() * (room.h - 2))) * 40;
                 this.chests.push(new Chest(this, cx, cy));

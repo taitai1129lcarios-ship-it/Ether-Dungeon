@@ -50,75 +50,198 @@ export class Map {
     }
 
     generate() {
+        // Initialize with Walls
+        this.tiles = [];
         for (let y = 0; y < this.height; y++) {
             this.tiles[y] = [];
             for (let x = 0; x < this.width; x++) {
                 this.tiles[y][x] = 1;
             }
         }
+        this.rooms = [];
 
-        const roomCount = 25;
-        const minSize = 6;
-        const maxSize = 15;
+        // 1. Place Preset Rooms
+        // Treasure Room: 5x5, 1 Entrance
+        this.placeRoom({
+            w: 7, h: 7, // 5x5 floor + walls
+            type: 'treasure',
+            entranceCount: 1
+        });
 
-        for (let i = 0; i < roomCount; i++) {
-            const w = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
-            const h = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
-            const x = Math.floor(Math.random() * (this.width - w - 2)) + 1;
-            const y = Math.floor(Math.random() * (this.height - h - 2)) + 1;
+        // 2. Place Random Rooms
+        const attemptLimit = 100;
+        const targetRooms = 15;
 
-            const newRoom = { x, y, w, h };
+        for (let i = 0; i < attemptLimit && this.rooms.length < targetRooms; i++) {
+            const w = Math.floor(Math.random() * 8) + 6; // 6 to 13
+            const h = Math.floor(Math.random() * 8) + 6;
+
+            // Entrance count proportional to size (max 4)
+            const sizeFactor = (w * h) / 100;
+            const entrances = Math.max(1, Math.min(4, Math.ceil(sizeFactor * 2)));
+
+            this.placeRoom({
+                w: w, h: h,
+                type: 'normal',
+                entranceCount: entrances
+            });
+        }
+
+        // 3. Connect Rooms via Connectors
+        this.connectRooms();
+    }
+
+    placeRoom(config) {
+        // Try random positions
+        for (let i = 0; i < 50; i++) {
+            const x = Math.floor(Math.random() * (this.width - config.w - 2)) + 1;
+            const y = Math.floor(Math.random() * (this.height - config.h - 2)) + 1;
+
+            const newRoom = {
+                x, y, w: config.w, h: config.h,
+                type: config.type,
+                connectors: []
+            };
+
+            // Check overlap
             let failed = false;
             for (let other of this.rooms) {
-                if (newRoom.x <= other.x + other.w && newRoom.x + newRoom.w >= other.x &&
-                    newRoom.y <= other.y + other.h && newRoom.y + newRoom.h >= other.y) {
+                // Add padding to prevent rooms sticking too close without paths
+                if (newRoom.x - 1 <= other.x + other.w && newRoom.x + newRoom.w + 1 >= other.x &&
+                    newRoom.y - 1 <= other.y + other.h && newRoom.y + newRoom.h + 1 >= other.y) {
                     failed = true;
                     break;
                 }
             }
 
             if (!failed) {
-                this.createRoom(newRoom);
-                if (this.rooms.length > 0) {
-                    const prev = this.rooms[this.rooms.length - 1];
-                    this.createTunnel(prev.x + Math.floor(prev.w / 2), prev.y + Math.floor(prev.h / 2),
-                        newRoom.x + Math.floor(newRoom.w / 2), newRoom.y + Math.floor(newRoom.h / 2));
-                }
+                this.carveRoom(newRoom);
+                this.generateConnectors(newRoom, config.entranceCount);
                 this.rooms.push(newRoom);
+                return true;
             }
         }
+        return false;
     }
 
-    createRoom(room) {
-        for (let y = room.y; y < room.y + room.h; y++) {
-            for (let x = room.x; x < room.x + room.w; x++) {
+    carveRoom(room) {
+        // Fill room area with floors, keeping 1 tile outer border as wall (managed by room.w/h include walls? No, let's say rooms are floor area + 1 wall... 
+        // Let's stick to: room.x/y/w/h defines the WALL boundaries. Inner is floor.
+        for (let y = room.y + 1; y < room.y + room.h - 1; y++) {
+            for (let x = room.x + 1; x < room.x + room.w - 1; x++) {
                 this.tiles[y][x] = 0;
             }
         }
     }
 
-    createTunnel(x1, y1, x2, y2) {
+    generateConnectors(room, count) {
+        // Possible connection points: center of walls
+        // Or random points along walls?
+        // Let's pick random points on the 4 walls (excluding corners)
+
+        const possible = [];
+        // Top Wall
+        for (let x = room.x + 2; x < room.x + room.w - 2; x++) possible.push({ x: x, y: room.y, dir: 'up' });
+        // Bottom Wall
+        for (let x = room.x + 2; x < room.x + room.w - 2; x++) possible.push({ x: x, y: room.y + room.h - 1, dir: 'down' });
+        // Left Wall
+        for (let y = room.y + 2; y < room.y + room.h - 2; y++) possible.push({ x: room.x, y: y, dir: 'left' });
+        // Right Wall
+        for (let y = room.y + 2; y < room.y + room.h - 2; y++) possible.push({ x: room.x + room.w - 1, y: y, dir: 'right' });
+
+        // Shuffle
+        possible.sort(() => Math.random() - 0.5);
+
+        // Pick count
+        for (let i = 0; i < count && i < possible.length; i++) {
+            const c = possible[i];
+            room.connectors.push(c);
+            // Mark connector as floor (doorway)
+            this.tiles[c.y][c.x] = 0;
+        }
+    }
+
+    connectRooms() {
+        // Simple MST-like or Chain approach
+        // Connect Room 0 -> 1, 1 -> 2, etc. to ensure connectivity
+        // Then add random connections for loops?
+
+        // Actually, user wants "Connect connectors". 
+        // Let's store all unconnected connectors.
+        const allConnectors = [];
+        this.rooms.forEach((r, idx) => {
+            r.connectors.forEach(c => allConnectors.push({ ...c, roomId: idx }));
+        });
+
+        // Ensure graph connectivity:
+        // Connect Room I to Room I+1 via closest connectors
+        for (let i = 0; i < this.rooms.length - 1; i++) {
+            const roomA = this.rooms[i];
+            const roomB = this.rooms[i + 1];
+
+            // Find closest pair of connectors between A and B
+            let minDist = Infinity;
+            let bestC1 = null;
+            let bestC2 = null;
+
+            roomA.connectors.forEach(c1 => {
+                roomB.connectors.forEach(c2 => {
+                    const d = Math.abs(c1.x - c2.x) + Math.abs(c1.y - c2.y);
+                    if (d < minDist) {
+                        minDist = d;
+                        bestC1 = c1;
+                        bestC2 = c2;
+                    }
+                });
+            });
+
+            if (bestC1 && bestC2) {
+                this.digPath(bestC1.x, bestC1.y, bestC2.x, bestC2.y);
+            }
+        }
+
+        // Randomly connect a few other connectors to create loops
+        for (let i = 0; i < this.rooms.length; i++) {
+            if (Math.random() > 0.5) {
+                const r1 = this.rooms[Math.floor(Math.random() * this.rooms.length)];
+                const r2 = this.rooms[Math.floor(Math.random() * this.rooms.length)];
+                if (r1 !== r2 && r1.connectors.length > 0 && r2.connectors.length > 0) {
+                    const c1 = r1.connectors[0];
+                    const c2 = r2.connectors[0];
+                    this.digPath(c1.x, c1.y, c2.x, c2.y);
+                }
+            }
+        }
+    }
+
+    digPath(x1, y1, x2, y2) {
+        // Simple L-shape corridor
+        let cx = x1;
+        let cy = y1;
+
+        // Randomly choose horizontal or vertical first
         if (Math.random() < 0.5) {
-            this.createH_Tunnel(x1, x2, y1);
-            this.createV_Tunnel(y1, y2, x2);
+            // Horizontal then Vertical
+            while (cx !== x2) {
+                this.tiles[cy][cx] = 0;
+                cx += (x2 > cx ? 1 : -1);
+            }
+            while (cy !== y2) {
+                this.tiles[cy][cx] = 0;
+                cy += (y2 > cy ? 1 : -1);
+            }
         } else {
-            this.createV_Tunnel(y1, y2, x1);
-            this.createH_Tunnel(x1, x2, y2);
+            // Vertical then Horizontal
+            while (cy !== y2) {
+                this.tiles[cy][cx] = 0;
+                cy += (y2 > cy ? 1 : -1);
+            }
+            while (cx !== x2) {
+                this.tiles[cy][cx] = 0;
+                cx += (x2 > cx ? 1 : -1);
+            }
         }
-    }
-
-    createH_Tunnel(x1, x2, y) {
-        for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
-            this.tiles[y][x] = 0;
-            this.tiles[y + 1][x] = 0;
-        }
-    }
-
-    createV_Tunnel(y1, y2, x) {
-        for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
-            this.tiles[y][x] = 0;
-            this.tiles[y][x + 1] = 0;
-        }
+        this.tiles[y2][x2] = 0; // Ensure end is open
     }
 
     draw(ctx, camera) {
