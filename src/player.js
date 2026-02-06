@@ -20,9 +20,9 @@ export class Player extends Entity {
         this.image.onload = () => {
             console.log('Player sprite loaded:', this.image.width, 'x', this.image.height);
             // Dynamic frame size calculation assuming 4x4 grid
-            this.spriteWidth = this.image.width / 4;
-            this.spriteHeight = this.image.height / 4;
-            console.log('calculated sprite size:', this.spriteWidth, 'x', this.spriteHeight);
+            this.rawSpriteWidth = this.image.width / 4;
+            this.rawSpriteHeight = this.image.height / 4;
+            console.log('raw sprite size:', this.rawSpriteWidth, 'x', this.rawSpriteHeight);
         };
         this.image.onerror = (e) => {
             console.error('Failed to load player sprite:', e);
@@ -34,11 +34,15 @@ export class Player extends Entity {
         this.maxFrames = 4; // Columns
         this.frameTimer = 0;
         this.frameInterval = 0.15; // Animation speed
-        this.spriteWidth = 32; // Default fallback
-        this.spriteHeight = 32; // Default fallback
+        this.rawSpriteWidth = 32; // Default fallback
+        this.rawSpriteHeight = 32; // Default fallback
 
-        this.width = 32;
-        this.height = 32;
+        // Tuning properties to handle gaps in AI sprite sheets
+        this.spritePaddingX = 40; // Pixels to trim from left/right
+        this.spritePaddingY = 20; // Pixels to trim from top/bottom
+
+        this.width = 30; // Reduce collision box slightly
+        this.height = 30;
     }
 
     equipSkill(skill) {
@@ -156,13 +160,20 @@ export class Player extends Entity {
 
     draw(ctx) {
         if (this.image.complete && this.image.naturalWidth !== 0) {
-            // Calculate sprite position
-            const sx = this.frameX * this.spriteWidth;
-            const sy = this.frameY * this.spriteHeight; // Row: Down=0, Left=1, Right=2, Up=3
+            // Calculate base cell position
+            const cellX = this.frameX * this.rawSpriteWidth;
+            const cellY = this.frameY * this.rawSpriteHeight;
+
+            // Apply padding (trimming)
+            // Center the "view" inside the cell by adding padding to start and subtracting from width
+            const sx = cellX + this.spritePaddingX;
+            const sy = cellY + this.spritePaddingY;
+            const sw = this.rawSpriteWidth - (this.spritePaddingX * 2);
+            const sh = this.rawSpriteHeight - (this.spritePaddingY * 2);
 
             ctx.drawImage(
                 this.image,
-                sx, sy, this.spriteWidth, this.spriteHeight, // Source (Dynamic)
+                sx, sy, sw, sh, // Source (Trimmed)
                 Math.floor(this.x), Math.floor(this.y), this.width, this.height // Destination
             );
         } else {
