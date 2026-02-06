@@ -20,8 +20,8 @@ export class Player extends Entity {
         this.image.onload = () => {
             console.log('Player sprite loaded:', this.image.width, 'x', this.image.height);
             // Dynamic frame size calculation assuming 4x4 grid
-            this.spriteWidth = Math.floor(this.image.width / 4);
-            this.spriteHeight = Math.floor(this.image.height / 4);
+            this.spriteWidth = this.image.width / 4;
+            this.spriteHeight = this.image.height / 4;
             console.log('calculated sprite size:', this.spriteWidth, 'x', this.spriteHeight);
         };
         this.image.onerror = (e) => {
