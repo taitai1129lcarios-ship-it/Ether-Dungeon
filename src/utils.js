@@ -182,6 +182,7 @@ export class Entity {
         this.vy = 0;
         this.markedForDeletion = false;
         this.invulnerable = 0;
+        this.damageColor = '#fff'; // Default damage text color
     }
 
     update(dt) {
@@ -219,7 +220,7 @@ export class Entity {
             vy: -100,
             life: 0.8,
             maxLife: 0.8,
-            color: '#fff',
+            color: this.damageColor,
             font: '20px sans-serif'
         });
 

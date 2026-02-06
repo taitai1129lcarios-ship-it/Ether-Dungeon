@@ -43,6 +43,8 @@ export class Player extends Entity {
 
         this.width = 30; // Reduce collision box slightly
         this.height = 30;
+
+        this.damageColor = '#ff3333'; // Player takes red damage text
     }
 
     equipSkill(skill) {
@@ -160,20 +162,21 @@ export class Player extends Entity {
 
     draw(ctx) {
         if (this.image.complete && this.image.naturalWidth !== 0) {
-            // Calculate base cell position
-            const cellX = this.frameX * this.rawSpriteWidth;
-            const cellY = this.frameY * this.rawSpriteHeight;
+            // Calculate specific X position based on margins and gaps
+            // sx = margin + col * (width + gap)
+            const sx = this.layoutMarginX + this.frameX * (this.spriteRealWidth + this.layoutGapX);
 
-            // Apply padding (trimming)
-            // Center the "view" inside the cell by adding padding to start and subtracting from width
-            const sx = cellX + this.spritePaddingX;
-            const sy = cellY + this.spritePaddingY;
-            const sw = this.rawSpriteWidth - (this.spritePaddingX * 2);
-            const sh = this.rawSpriteHeight - (this.spritePaddingY * 2);
+            // Assuming Y is still uniform rows
+            const sy = this.frameY * this.spriteRealHeight;
+
+            // Trim logic can be added here if needed, but the calculated width is the "content" width
+            // So we use spriteRealWidth directly
+            const sw = this.spriteRealWidth;
+            const sh = this.spriteRealHeight;
 
             ctx.drawImage(
                 this.image,
-                sx, sy, sw, sh, // Source (Trimmed)
+                sx, sy, sw, sh, // Source
                 Math.floor(this.x), Math.floor(this.y), this.width, this.height // Destination
             );
         } else {
