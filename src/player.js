@@ -16,7 +16,18 @@ export class Player extends Entity {
         };
 
         this.image = new Image();
+        this.image = new Image();
         this.image.src = 'assets/player_sprites.png';
+        this.image.onload = () => {
+            console.log('Player sprite loaded:', this.image.width, 'x', this.image.height);
+            // Dynamic frame size calculation assuming 4x4 grid
+            this.spriteWidth = Math.floor(this.image.width / 4);
+            this.spriteHeight = Math.floor(this.image.height / 4);
+            console.log('calculated sprite size:', this.spriteWidth, 'x', this.spriteHeight);
+        };
+        this.image.onerror = (e) => {
+            console.error('Failed to load player sprite:', e);
+        };
 
         // Sprite animation properties
         this.frameX = 0;
@@ -24,7 +35,8 @@ export class Player extends Entity {
         this.maxFrames = 4; // Columns
         this.frameTimer = 0;
         this.frameInterval = 0.15; // Animation speed
-        this.spriteSize = 32; // Size of one frame in sprite sheet
+        this.spriteWidth = 32; // Default fallback
+        this.spriteHeight = 32; // Default fallback
 
         this.width = 32;
         this.height = 32;
