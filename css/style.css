@@ -181,6 +181,7 @@ canvas {
 .skill-slot .skill-icon {
     width: 48px;
     height: 48px;
+    margin-bottom: 0;
 }
 
 .equip-slot .skill-icon {

@@ -356,5 +356,16 @@ class Game {
 }
 
 window.onload = () => {
-    const game = new Game();
+    try {
+        console.log("Starting Game Initialization...");
+        const game = new Game();
+        console.log("Game Initialized Successfully.");
+    } catch (e) {
+        console.error("Game Initialization Failed:", e);
+        document.body.innerHTML += `<div style="position:absolute;top:0;left:0;color:red;background:rgba(0,0,0,0.8);padding:20px;z-index:9999;font-size:24px;">Error: ${e.message}<br><pre>${e.stack}</pre></div>`;
+    }
 };
+
+window.addEventListener('error', (e) => {
+    document.body.innerHTML += `<div style="position:absolute;top:50px;left:0;color:yellow;background:rgba(0,0,0,0.8);padding:20px;z-index:9999;font-size:20px;">Runtime Error: ${e.message}</div>`;
+});

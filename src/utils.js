@@ -105,11 +105,11 @@ export class Map {
                 id: this.rooms.length
             };
 
-            // Check overlap with existing rooms (buffer of 2 for paths)
+            // Check overlap with existing rooms (buffer of 6 for wider spacing)
             let failed = false;
             for (let other of this.rooms) {
-                if (newRoom.x - 2 <= other.x + other.w && newRoom.x + newRoom.w + 2 >= other.x &&
-                    newRoom.y - 2 <= other.y + other.h && newRoom.y + newRoom.h + 2 >= other.y) {
+                if (newRoom.x - 6 <= other.x + other.w && newRoom.x + newRoom.w + 6 >= other.x &&
+                    newRoom.y - 6 <= other.y + other.h && newRoom.y + newRoom.h + 6 >= other.y) {
                     failed = true;
                     break;
                 }
@@ -143,21 +143,33 @@ export class Map {
     generateConnectors(room, count) {
         const possible = [];
         // Top Wall (x, room.y) - Dir Up
-        for (let x = room.x + 2; x < room.x + room.w - 2; x++) possible.push({ x: x, y: room.y, dir: { x: 0, y: -1 } });
+        for (let x = room.x + 2; x < room.x + room.w - 3; x++) possible.push({ x: x, y: room.y, dir: { x: 0, y: -1 } });
         // Bottom Wall (x, room.y + h -1) - Dir Down
-        for (let x = room.x + 2; x < room.x + room.w - 2; x++) possible.push({ x: x, y: room.y + room.h - 1, dir: { x: 0, y: 1 } });
+        for (let x = room.x + 2; x < room.x + room.w - 3; x++) possible.push({ x: x, y: room.y + room.h - 1, dir: { x: 0, y: 1 } });
         // Left Wall (room.x, y) - Dir Left
-        for (let y = room.y + 2; y < room.y + room.h - 2; y++) possible.push({ x: room.x, y: y, dir: { x: -1, y: 0 } });
+        for (let y = room.y + 2; y < room.y + room.h - 3; y++) possible.push({ x: room.x, y: y, dir: { x: -1, y: 0 } });
         // Right Wall (room.x + w -1, y) - Dir Right
-        for (let y = room.y + 2; y < room.y + room.h - 2; y++) possible.push({ x: room.x + room.w - 1, y: y, dir: { x: 1, y: 0 } });
+        for (let y = room.y + 2; y < room.y + room.h - 3; y++) possible.push({ x: room.x + room.w - 1, y: y, dir: { x: 1, y: 0 } });
 
         possible.sort(() => Math.random() - 0.5);
 
-        for (let i = 0; i < count && i < possible.length; i++) {
+        let added = 0;
+        for (let i = 0; i < possible.length && added < count; i++) {
             const c = possible[i];
+
+            // PROXIMITY CHECK: Ensure at least 4 tiles away from existing connectors
+            let tooClose = false;
+            for (let existing of room.connectors) {
+                const dist = Math.abs(c.x - existing.x) + Math.abs(c.y - existing.y);
+                if (dist < 4) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            if (tooClose) continue;
+
             room.connectors.push(c);
-            this.tiles[c.y][c.x] = 0; // Open door
-            this.roomGrid[c.y][c.x] = -1; // Treat door as 'not room' for pathing check allows entry?
+            added++;
         }
     }
 
@@ -169,9 +181,9 @@ export class Map {
             this.connectTwoRooms(r1, r2);
         }
 
-        // Random loops
+        // Random loops (Reduced chance 0.3 -> 0.1)
         for (let i = 0; i < this.rooms.length; i++) {
-            if (Math.random() < 0.3) {
+            if (Math.random() < 0.1) {
                 const rA = this.rooms[i];
                 const rB = this.rooms[Math.floor(Math.random() * this.rooms.length)];
                 if (rA !== rB) this.connectTwoRooms(rA, rB);
@@ -180,23 +192,36 @@ export class Map {
     }
 
     connectTwoRooms(r1, r2) {
-        let bestPath = null;
-        let minCost = Infinity;
+        let bestPair = null;
+        let minScore = Infinity; // Lower is better
 
-        // Try all connector pairs, find shortest A*
-        // Optimization: Just try closest Euclidean pair first?
-        // Or limiting check count.
+        // Find best connector pair: Prioritize ALIGNMENT first, then distance
+        for (let c1 of r1.connectors) {
+            for (let c2 of r2.connectors) {
+                const dist = Math.abs(c1.x - c2.x) + Math.abs(c1.y - c2.y);
 
-        let c1 = r1.connectors[Math.floor(Math.random() * r1.connectors.length)];
-        let c2 = r2.connectors[Math.floor(Math.random() * r2.connectors.length)];
+                let score = dist;
 
-        // Find path
-        const path = this.findPath(c1, c2);
-        if (path) {
-            this.drawPath(path);
-        } else {
-            // Brute force retry?
-            // Maybe fallback to L-shape if A* fails (tunneling mode)
+                // Alignment Bonus (actually penalty reduction)
+                // If aligned on X or Y, significantly reduce score to prefer it
+                const aligned = (c1.x === c2.x || c1.y === c2.y);
+                if (aligned) {
+                    score -= 50; // Huge preference for straight lines
+                }
+
+                if (score < minScore) {
+                    minScore = score;
+                    bestPair = { start: c1, end: c2 };
+                }
+            }
+        }
+
+        if (bestPair) {
+            // Find path
+            const path = this.findPath(bestPair.start, bestPair.end);
+            if (path) {
+                this.drawPath(path);
+            }
         }
     }
 
@@ -237,11 +262,82 @@ export class Map {
                 if (!this.isValid(next.x, next.y)) continue;
 
                 // Obstacle check: Can't walk through OTHER rooms
-                // roomGrid[y][x] != -1 means it is a room.
-                // Allow if it is -1.
                 if (this.roomGrid[next.y][next.x] !== -1) continue;
 
-                const tentativeG = gScore[id(current)] + 1;
+                // Enforce 2-tile wall thickness (PREVENT THIN WALLS)
+                let thicknessViolation = false;
+                const nx = next.x;
+                const ny = next.y;
+
+                const getTile = (tx, ty) => {
+                    if (tx < 0 || tx >= this.width || ty < 0 || ty >= this.height) return 1;
+                    return this.tiles[ty][tx];
+                };
+
+                // CHECK TOP (ny-1)
+                if (getTile(nx, ny - 1) === 1 && getTile(nx, ny - 2) === 0) thicknessViolation = true;
+                if (getTile(nx + 1, ny - 1) === 1 && getTile(nx + 1, ny - 2) === 0) thicknessViolation = true;
+
+                // CHECK BOTTOM (ny+2)
+                if (getTile(nx, ny + 2) === 1 && getTile(nx, ny + 3) === 0) thicknessViolation = true;
+                if (getTile(nx + 1, ny + 2) === 1 && getTile(nx + 1, ny + 3) === 0) thicknessViolation = true;
+
+                // CHECK LEFT (nx-1)
+                if (getTile(nx - 1, ny) === 1 && getTile(nx - 2, ny) === 0) thicknessViolation = true;
+                if (getTile(nx - 1, ny + 1) === 1 && getTile(nx - 2, ny + 1) === 0) thicknessViolation = true;
+
+                // CHECK RIGHT (nx+2)
+                if (getTile(nx + 2, ny) === 1 && getTile(nx + 3, ny) === 0) thicknessViolation = true;
+                if (getTile(nx + 2, ny + 1) === 1 && getTile(nx + 3, ny + 1) === 0) thicknessViolation = true;
+
+                // Calculate Cost
+                let moveCost = 1;
+
+                if (thicknessViolation) {
+                    moveCost += 50;
+                }
+
+                // Turn Logic
+                const parent = cameFrom[id(current)];
+                let prevDx = 0;
+                let prevDy = 0;
+                let turning = false;
+
+                if (parent) {
+                    prevDx = current.x - parent.x;
+                    prevDy = current.y - parent.y;
+                } else {
+                    prevDx = start.dir.x;
+                    prevDy = start.dir.y;
+                }
+
+                const nextDx = next.x - current.x;
+                const nextDy = next.y - current.y;
+
+                if (prevDx !== nextDx || prevDy !== nextDy) {
+                    turning = true;
+                    moveCost += 10; // Increased base turn penalty
+                }
+
+                // ZIGZAG PENALTY (Prevent 1-tile steps)
+                // If we are turning NOW, check if we ALSO turned at 'parent'.
+                if (turning && parent) {
+                    const grandparent = cameFrom[id(parent)];
+                    if (grandparent) {
+                        const gpDx = parent.x - grandparent.x;
+                        const gpDy = parent.y - grandparent.y;
+
+                        // If previous move (grandparent -> parent) direction != current move (parent -> current) direction
+                        // Then we turned at parent.
+                        if (gpDx !== prevDx || gpDy !== prevDy) {
+                            // We turned at parent, and we are turning at current.
+                            // This implies the segment parent->current was length 1.
+                            moveCost += 100; // MASSIVE penalty for staircasing
+                        }
+                    }
+                }
+
+                const tentativeG = gScore[id(current)] + moveCost;
                 if (tentativeG < (gScore[id(next)] || Infinity)) {
                     cameFrom[id(next)] = current;
                     gScore[id(next)] = tentativeG;
@@ -266,9 +362,15 @@ export class Map {
     reconstructPath(cameFrom, current, start, end) {
         const path = [end, current];
         let temp = current;
+        let safety = 0;
         while (cameFrom[`${temp.x},${temp.y}`]) {
             temp = cameFrom[`${temp.x},${temp.y}`];
             path.push(temp);
+            safety++;
+            if (safety > 10000) {
+                console.error("Pathfinding infinite loop detected!", start, end);
+                break;
+            }
         }
         path.push(start);
         return path;
@@ -277,6 +379,11 @@ export class Map {
     drawPath(path) {
         for (let p of path) {
             this.tiles[p.y][p.x] = 0;
+            // Widen path: always clear right and bottom neighbors to ensure 2-width/height
+            // This is a simple brush approach
+            if (p.x + 1 < this.width) this.tiles[p.y][p.x + 1] = 0;
+            if (p.y + 1 < this.height) this.tiles[p.y + 1][p.x] = 0;
+            if (p.x + 1 < this.width && p.y + 1 < this.height) this.tiles[p.y + 1][p.x + 1] = 0;
         }
     }
 
