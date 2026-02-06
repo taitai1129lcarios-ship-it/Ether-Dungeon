@@ -33,7 +33,7 @@ export class Player extends Entity {
         this.frameY = 0; // Row: 0=Down, 1=Left, 2=Right, 3=Up
         this.maxFrames = 4; // Columns
         this.frameTimer = 0;
-        this.frameInterval = 0.15; // Animation speed
+        this.frameInterval = 0.1; // Faster animation speed
         this.rawSpriteWidth = 32; // Default fallback
         this.rawSpriteHeight = 32; // Default fallback
 
