@@ -45,6 +45,16 @@ export class Player extends Entity {
         this.height = 30;
 
         this.damageColor = '#ff3333'; // Player takes red damage text
+
+        // Load Sprite JSON
+        this.spriteData = null;
+        fetch('assets/player_sprites.json')
+            .then(response => response.json())
+            .then(data => {
+                this.spriteData = data;
+                console.log('Player sprite data loaded:', this.spriteData);
+            })
+            .catch(err => console.error('Failed to load sprite JSON:', err));
     }
 
     equipSkill(skill) {
@@ -94,6 +104,7 @@ export class Player extends Entity {
         }
 
         // Map facing to sprite row
+        // JSON Order: 0-3 Down, 4-7 Left, 8-11 Right, 12-15 Up
         switch (this.facing) {
             case 'down': this.frameY = 0; break;
             case 'left': this.frameY = 1; break;
@@ -161,25 +172,22 @@ export class Player extends Entity {
     }
 
     draw(ctx) {
-        if (this.image.complete && this.image.naturalWidth !== 0) {
-            // Calculate specific X position based on margins and gaps
-            // sx = margin + col * (width + gap)
-            const sx = this.layoutMarginX + this.frameX * (this.spriteRealWidth + this.layoutGapX);
+        if (this.image.complete && this.image.naturalWidth !== 0 && this.spriteData) {
+            // Calculate frame index
+            const frameIndex = this.frameY * 4 + this.frameX;
 
-            // Assuming Y is still uniform rows
-            const sy = this.frameY * this.spriteRealHeight;
+            // Safety check
+            if (this.spriteData.frames && this.spriteData.frames[frameIndex]) {
+                const frameData = this.spriteData.frames[frameIndex].frame;
 
-            // Trim logic can be added here if needed, but the calculated width is the "content" width
-            // So we use spriteRealWidth directly
-            const sw = this.spriteRealWidth;
-            const sh = this.spriteRealHeight;
-
-            ctx.drawImage(
-                this.image,
-                sx, sy, sw, sh, // Source
-                Math.floor(this.x), Math.floor(this.y), this.width, this.height // Destination
-            );
+                ctx.drawImage(
+                    this.image,
+                    frameData.x, frameData.y, frameData.w, frameData.h, // Source from JSON
+                    Math.floor(this.x), Math.floor(this.y), this.width, this.height // Destination
+                );
+            }
         } else {
+            // Fallback (or loading state)
             super.draw(ctx);
         }
 
