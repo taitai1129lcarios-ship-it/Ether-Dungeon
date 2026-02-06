@@ -52,18 +52,20 @@ export class Map {
     generate() {
         // Initialize with Walls
         this.tiles = [];
+        this.roomGrid = []; // Stores room index or -1
         for (let y = 0; y < this.height; y++) {
             this.tiles[y] = [];
+            this.roomGrid[y] = [];
             for (let x = 0; x < this.width; x++) {
-                this.tiles[y][x] = 1;
+                this.tiles[y][x] = 1; // 1 = Wall
+                this.roomGrid[y][x] = -1; // -1 = No Room
             }
         }
         this.rooms = [];
 
         // 1. Place Preset Rooms
-        // Treasure Room: 5x5, 1 Entrance
         this.placeRoom({
-            w: 7, h: 7, // 5x5 floor + walls
+            w: 7, h: 7,
             type: 'treasure',
             entranceCount: 1
         });
@@ -76,7 +78,6 @@ export class Map {
             const w = Math.floor(Math.random() * 8) + 6; // 6 to 13
             const h = Math.floor(Math.random() * 8) + 6;
 
-            // Entrance count proportional to size (max 4)
             const sizeFactor = (w * h) / 100;
             const entrances = Math.max(1, Math.min(4, Math.ceil(sizeFactor * 2)));
 
@@ -87,28 +88,28 @@ export class Map {
             });
         }
 
-        // 3. Connect Rooms via Connectors
+        // 3. Connect Rooms via Connectors with A*
         this.connectRooms();
     }
 
     placeRoom(config) {
         // Try random positions
         for (let i = 0; i < 50; i++) {
-            const x = Math.floor(Math.random() * (this.width - config.w - 2)) + 1;
-            const y = Math.floor(Math.random() * (this.height - config.h - 2)) + 1;
+            const x = Math.floor(Math.random() * (this.width - config.w - 4)) + 2; // +2 padding for connectors
+            const y = Math.floor(Math.random() * (this.height - config.h - 4)) + 2;
 
             const newRoom = {
                 x, y, w: config.w, h: config.h,
                 type: config.type,
-                connectors: []
+                connectors: [],
+                id: this.rooms.length
             };
 
-            // Check overlap
+            // Check overlap with existing rooms (buffer of 2 for paths)
             let failed = false;
             for (let other of this.rooms) {
-                // Add padding to prevent rooms sticking too close without paths
-                if (newRoom.x - 1 <= other.x + other.w && newRoom.x + newRoom.w + 1 >= other.x &&
-                    newRoom.y - 1 <= other.y + other.h && newRoom.y + newRoom.h + 1 >= other.y) {
+                if (newRoom.x - 2 <= other.x + other.w && newRoom.x + newRoom.w + 2 >= other.x &&
+                    newRoom.y - 2 <= other.y + other.h && newRoom.y + newRoom.h + 2 >= other.y) {
                     failed = true;
                     break;
                 }
@@ -125,8 +126,13 @@ export class Map {
     }
 
     carveRoom(room) {
-        // Fill room area with floors, keeping 1 tile outer border as wall (managed by room.w/h include walls? No, let's say rooms are floor area + 1 wall... 
-        // Let's stick to: room.x/y/w/h defines the WALL boundaries. Inner is floor.
+        // Mark room grid
+        for (let y = room.y; y < room.y + room.h; y++) {
+            for (let x = room.x; x < room.x + room.w; x++) {
+                this.roomGrid[y][x] = room.id;
+            }
+        }
+        // Hollow out
         for (let y = room.y + 1; y < room.y + room.h - 1; y++) {
             for (let x = room.x + 1; x < room.x + room.w - 1; x++) {
                 this.tiles[y][x] = 0;
@@ -135,113 +141,143 @@ export class Map {
     }
 
     generateConnectors(room, count) {
-        // Possible connection points: center of walls
-        // Or random points along walls?
-        // Let's pick random points on the 4 walls (excluding corners)
-
         const possible = [];
-        // Top Wall
-        for (let x = room.x + 2; x < room.x + room.w - 2; x++) possible.push({ x: x, y: room.y, dir: 'up' });
-        // Bottom Wall
-        for (let x = room.x + 2; x < room.x + room.w - 2; x++) possible.push({ x: x, y: room.y + room.h - 1, dir: 'down' });
-        // Left Wall
-        for (let y = room.y + 2; y < room.y + room.h - 2; y++) possible.push({ x: room.x, y: y, dir: 'left' });
-        // Right Wall
-        for (let y = room.y + 2; y < room.y + room.h - 2; y++) possible.push({ x: room.x + room.w - 1, y: y, dir: 'right' });
+        // Top Wall (x, room.y) - Dir Up
+        for (let x = room.x + 2; x < room.x + room.w - 2; x++) possible.push({ x: x, y: room.y, dir: { x: 0, y: -1 } });
+        // Bottom Wall (x, room.y + h -1) - Dir Down
+        for (let x = room.x + 2; x < room.x + room.w - 2; x++) possible.push({ x: x, y: room.y + room.h - 1, dir: { x: 0, y: 1 } });
+        // Left Wall (room.x, y) - Dir Left
+        for (let y = room.y + 2; y < room.y + room.h - 2; y++) possible.push({ x: room.x, y: y, dir: { x: -1, y: 0 } });
+        // Right Wall (room.x + w -1, y) - Dir Right
+        for (let y = room.y + 2; y < room.y + room.h - 2; y++) possible.push({ x: room.x + room.w - 1, y: y, dir: { x: 1, y: 0 } });
 
-        // Shuffle
         possible.sort(() => Math.random() - 0.5);
 
-        // Pick count
         for (let i = 0; i < count && i < possible.length; i++) {
             const c = possible[i];
             room.connectors.push(c);
-            // Mark connector as floor (doorway)
-            this.tiles[c.y][c.x] = 0;
+            this.tiles[c.y][c.x] = 0; // Open door
+            this.roomGrid[c.y][c.x] = -1; // Treat door as 'not room' for pathing check allows entry?
         }
     }
 
     connectRooms() {
-        // Simple MST-like or Chain approach
-        // Connect Room 0 -> 1, 1 -> 2, etc. to ensure connectivity
-        // Then add random connections for loops?
-
-        // Actually, user wants "Connect connectors". 
-        // Let's store all unconnected connectors.
-        const allConnectors = [];
-        this.rooms.forEach((r, idx) => {
-            r.connectors.forEach(c => allConnectors.push({ ...c, roomId: idx }));
-        });
-
-        // Ensure graph connectivity:
-        // Connect Room I to Room I+1 via closest connectors
+        // Connect Room I to Room I+1
         for (let i = 0; i < this.rooms.length - 1; i++) {
-            const roomA = this.rooms[i];
-            const roomB = this.rooms[i + 1];
-
-            // Find closest pair of connectors between A and B
-            let minDist = Infinity;
-            let bestC1 = null;
-            let bestC2 = null;
-
-            roomA.connectors.forEach(c1 => {
-                roomB.connectors.forEach(c2 => {
-                    const d = Math.abs(c1.x - c2.x) + Math.abs(c1.y - c2.y);
-                    if (d < minDist) {
-                        minDist = d;
-                        bestC1 = c1;
-                        bestC2 = c2;
-                    }
-                });
-            });
-
-            if (bestC1 && bestC2) {
-                this.digPath(bestC1.x, bestC1.y, bestC2.x, bestC2.y);
-            }
+            const r1 = this.rooms[i];
+            const r2 = this.rooms[i + 1];
+            this.connectTwoRooms(r1, r2);
         }
 
-        // Randomly connect a few other connectors to create loops
+        // Random loops
         for (let i = 0; i < this.rooms.length; i++) {
-            if (Math.random() > 0.5) {
-                const r1 = this.rooms[Math.floor(Math.random() * this.rooms.length)];
-                const r2 = this.rooms[Math.floor(Math.random() * this.rooms.length)];
-                if (r1 !== r2 && r1.connectors.length > 0 && r2.connectors.length > 0) {
-                    const c1 = r1.connectors[0];
-                    const c2 = r2.connectors[0];
-                    this.digPath(c1.x, c1.y, c2.x, c2.y);
-                }
+            if (Math.random() < 0.3) {
+                const rA = this.rooms[i];
+                const rB = this.rooms[Math.floor(Math.random() * this.rooms.length)];
+                if (rA !== rB) this.connectTwoRooms(rA, rB);
             }
         }
     }
 
-    digPath(x1, y1, x2, y2) {
-        // Simple L-shape corridor
-        let cx = x1;
-        let cy = y1;
+    connectTwoRooms(r1, r2) {
+        let bestPath = null;
+        let minCost = Infinity;
 
-        // Randomly choose horizontal or vertical first
-        if (Math.random() < 0.5) {
-            // Horizontal then Vertical
-            while (cx !== x2) {
-                this.tiles[cy][cx] = 0;
-                cx += (x2 > cx ? 1 : -1);
-            }
-            while (cy !== y2) {
-                this.tiles[cy][cx] = 0;
-                cy += (y2 > cy ? 1 : -1);
-            }
+        // Try all connector pairs, find shortest A*
+        // Optimization: Just try closest Euclidean pair first?
+        // Or limiting check count.
+
+        let c1 = r1.connectors[Math.floor(Math.random() * r1.connectors.length)];
+        let c2 = r2.connectors[Math.floor(Math.random() * r2.connectors.length)];
+
+        // Find path
+        const path = this.findPath(c1, c2);
+        if (path) {
+            this.drawPath(path);
         } else {
-            // Vertical then Horizontal
-            while (cy !== y2) {
-                this.tiles[cy][cx] = 0;
-                cy += (y2 > cy ? 1 : -1);
+            // Brute force retry?
+            // Maybe fallback to L-shape if A* fails (tunneling mode)
+        }
+    }
+
+    findPath(start, end) {
+        // A* Algorithm
+        const startNode = { x: start.x + start.dir.x, y: start.y + start.dir.y }; // Step out
+        const endNode = { x: end.x + end.dir.x, y: end.y + end.dir.y }; // Step out target
+
+        // Check bounds
+        if (!this.isValid(startNode.x, startNode.y)) startNode.x = start.x; // Fallback
+        if (!this.isValid(endNode.x, endNode.y)) endNode.x = end.x;
+
+        const open = [startNode];
+        const cameFrom = {};
+        const gScore = {};
+        gScore[`${startNode.x},${startNode.y}`] = 0;
+
+        const fScore = {};
+        fScore[`${startNode.x},${startNode.y}`] = this.heuristic(startNode, endNode);
+
+        const id = (n) => `${n.x},${n.y}`;
+
+        while (open.length > 0) {
+            // Get lowest fScore
+            open.sort((a, b) => (fScore[id(a)] || Infinity) - (fScore[id(b)] || Infinity));
+            const current = open.shift();
+
+            if (current.x === endNode.x && current.y === endNode.y) {
+                return this.reconstructPath(cameFrom, current, start, end);
             }
-            while (cx !== x2) {
-                this.tiles[cy][cx] = 0;
-                cx += (x2 > cx ? 1 : -1);
+
+            const neighbors = [
+                { x: current.x + 1, y: current.y }, { x: current.x - 1, y: current.y },
+                { x: current.x, y: current.y + 1 }, { x: current.x, y: current.y - 1 }
+            ];
+
+            for (let next of neighbors) {
+                if (!this.isValid(next.x, next.y)) continue;
+
+                // Obstacle check: Can't walk through OTHER rooms
+                // roomGrid[y][x] != -1 means it is a room.
+                // Allow if it is -1.
+                if (this.roomGrid[next.y][next.x] !== -1) continue;
+
+                const tentativeG = gScore[id(current)] + 1;
+                if (tentativeG < (gScore[id(next)] || Infinity)) {
+                    cameFrom[id(next)] = current;
+                    gScore[id(next)] = tentativeG;
+                    fScore[id(next)] = tentativeG + this.heuristic(next, endNode);
+                    if (!open.some(n => n.x === next.x && n.y === next.y)) {
+                        open.push(next);
+                    }
+                }
             }
         }
-        this.tiles[y2][x2] = 0; // Ensure end is open
+        return null; // No path
+    }
+
+    isValid(x, y) {
+        return x >= 1 && x < this.width - 1 && y >= 1 && y < this.height - 1;
+    }
+
+    heuristic(a, b) {
+        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    }
+
+    reconstructPath(cameFrom, current, start, end) {
+        const path = [end, current];
+        let temp = current;
+        while (cameFrom[`${temp.x},${temp.y}`]) {
+            temp = cameFrom[`${temp.x},${temp.y}`];
+            path.push(temp);
+        }
+        path.push(start);
+        return path;
+    }
+
+    drawPath(path) {
+        for (let p of path) {
+            this.tiles[p.y][p.x] = 0;
+        }
     }
 
     draw(ctx, camera) {

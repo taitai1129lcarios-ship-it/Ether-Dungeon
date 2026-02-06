@@ -41,8 +41,8 @@ export class Player extends Entity {
         this.spritePaddingX = 40; // Pixels to trim from left/right
         this.spritePaddingY = 20; // Pixels to trim from top/bottom
 
-        this.width = 45; // 1.5x size (was 30)
-        this.height = 45; // 1.5x size (was 30)
+        this.width = 30; // Reduce collision box slightly
+        this.height = 30;
 
         this.damageColor = '#ff3333'; // Player takes red damage text
 
