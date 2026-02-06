@@ -16,7 +16,6 @@ export class Player extends Entity {
         };
 
         this.image = new Image();
-        this.image = new Image();
         this.image.src = 'assets/player_sprites.png';
         this.image.onload = () => {
             console.log('Player sprite loaded:', this.image.width, 'x', this.image.height);
@@ -158,16 +157,12 @@ export class Player extends Entity {
     draw(ctx) {
         if (this.image.complete && this.image.naturalWidth !== 0) {
             // Calculate sprite position
-            // Assuming sprite sheet is a grid of equal sized frames
-            const sx = this.frameX * this.spriteSize;
-            const sy = this.frameY * this.spriteSize; // Down=0, Left=32, Right=64, Up=96
-
-            // Determine if source image size matches expectation or if we need to scale logic
-            // Ideally image width = maxFrames * spriteSize
+            const sx = this.frameX * this.spriteWidth;
+            const sy = this.frameY * this.spriteHeight; // Row: Down=0, Left=1, Right=2, Up=3
 
             ctx.drawImage(
                 this.image,
-                sx, sy, this.spriteSize, this.spriteSize, // Source
+                sx, sy, this.spriteWidth, this.spriteHeight, // Source (Dynamic)
                 Math.floor(this.x), Math.floor(this.y), this.width, this.height // Destination
             );
         } else {
