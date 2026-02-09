@@ -40,6 +40,97 @@ export function initInventory(game) {
             }
         });
     });
+    // --- Settings UI Injection ---
+    // Settings Button
+    let settingsBtn = document.getElementById('settings-btn');
+    if (!settingsBtn) {
+        settingsBtn = document.createElement('button');
+        settingsBtn.id = 'settings-btn';
+        settingsBtn.textContent = '⚙️';
+        settingsBtn.style.cssText = `
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 1002;
+        `;
+        settingsBtn.onmouseover = () => settingsBtn.style.color = '#fff';
+        settingsBtn.onmouseout = () => settingsBtn.style.color = '#666';
+        invScreen.querySelector('.inventory-container').appendChild(settingsBtn);
+
+        settingsBtn.addEventListener('click', () => {
+            const modal = document.getElementById('settings-modal');
+            if (modal) modal.style.display = 'flex';
+        });
+    }
+
+    // Settings Modal
+    let settingsModal = document.getElementById('settings-modal');
+    if (!settingsModal) {
+        settingsModal = document.createElement('div');
+        settingsModal.id = 'settings-modal';
+        settingsModal.style.cssText = `
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        `;
+
+        const content = document.createElement('div');
+        content.style.cssText = `
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #444;
+            width: 300px;
+            color: white;
+            font-family: sans-serif;
+        `;
+        content.innerHTML = `
+            <h3 style="margin-top:0; border-bottom:1px solid #444; padding-bottom:10px;">設定</h3>
+            <div style="margin: 20px 0; display:flex; align-items:center; justify-content:space-between;">
+                <span>デバッグ情報の表示</span>
+                <input type="checkbox" id="debug-toggle">
+            </div>
+            <div style="text-align:right; margin-top:20px;">
+                <button id="close-settings" style="
+                    background: #444; border:none; color:white; 
+                    padding: 8px 16px; border-radius:4px; cursor:pointer;
+                ">閉じる</button>
+            </div>
+        `;
+        settingsModal.appendChild(content);
+        document.body.appendChild(settingsModal);
+
+        // Bind Events
+        const closeSettings = content.querySelector('#close-settings');
+        closeSettings.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+
+        const debugToggle = content.querySelector('#debug-toggle');
+
+        // Sync Initial State (needs game ref, handled below in render? or just check global if available, but passing 'game' is safer)
+        // Since init is run once, we need to bind event to update 'game'.
+        // BUT 'game' is passed to initInventory!
+
+        debugToggle.addEventListener('change', (e) => {
+            game.debugMode = e.target.checked;
+        });
+
+        // Expose update function to sync checkbox when opening
+        settingsBtn.addEventListener('click', () => {
+            debugToggle.checked = game.debugMode;
+        });
+    }
 }
 
 export function renderInventory(game) {

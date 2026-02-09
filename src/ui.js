@@ -191,10 +191,7 @@ function drawMiniMap(ctx, game, screenWidth, screenHeight) {
                 // Wall
                 ctx.fillStyle = '#888';
                 ctx.fillRect(mmX + x * scale, mmY + y * scale, scale, scale);
-            } else {
-                // Floor
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-                ctx.fillRect(mmX + x * scale, mmY + y * scale, scale, scale);
+                // Floor - Do nothing (Transparent/Background)
             }
         }
     }

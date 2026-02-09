@@ -6,26 +6,50 @@ import { drawUI, showSkillSelection, hideSkillSelection } from './ui.js';
 import { initInventory, renderInventory } from './inventory.js';
 import { skillsDB } from '../data/skills_db.js';
 
+const logToScreen = (msg) => {
+    console.log(msg);
+    let logParams = document.getElementById('debug-log');
+    if (!logParams) {
+        logParams = document.createElement('div');
+        logParams.id = 'debug-log';
+        logParams.style.cssText = "position:absolute;top:0;left:0;width:300px;height:200px;overflow:auto;background:rgba(0,0,0,0.5);color:white;z-index:9999;font-size:12px;pointer-events:none;";
+        document.body.appendChild(logParams);
+    }
+    logParams.innerHTML += `<div>${msg}</div>`;
+    logParams.scrollTop = logParams.scrollHeight;
+};
+
+logToScreen("Script loaded");
+
 // Enemy class moved to entities.js
 class Game {
     constructor() {
+        logToScreen("Game Constructor Start");
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.width = this.canvas.width;
         this.height = this.canvas.height;
         this.zoom = 1.2;
+        this.debugMode = false;
 
         this.input = new InputHandler();
-        this.init();
+        try {
+            this.init();
+        } catch (e) {
+            logToScreen("Init Error: " + e.message);
+            console.error(e);
+        }
 
         this.loop = this.loop.bind(this);
         requestAnimationFrame(this.loop);
+        logToScreen("Game Loop Started");
     }
 
     init() {
         // Larger Map: 80x60 tiles (3200x2400 pixels)
         this.map = new Map(80, 60, 40);
         this.map.generate();
+        logToScreen("Map Generated");
 
         this.camera = new Camera(this.width / this.zoom, this.height / this.zoom, this.map.pixelWidth, this.map.pixelHeight);
 
@@ -311,6 +335,10 @@ class Game {
     }
 
     draw() {
+        if (!this.hasDrawn) {
+            logToScreen("First Draw Call");
+            this.hasDrawn = true;
+        }
         // Clear screen
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0, 0, this.width, this.height);
@@ -320,8 +348,7 @@ class Game {
         this.ctx.scale(this.zoom, this.zoom);
         this.ctx.translate(-Math.floor(this.camera.x), -Math.floor(this.camera.y));
 
-        this.map.draw(this.ctx, this.camera);
-        this.map.draw(this.ctx, this.camera);
+        this.map.draw(this.ctx, this.camera, this.debugMode);
         this.chests.forEach(chest => {
             chest.draw(this.ctx);
             if (chest.showPrompt) {

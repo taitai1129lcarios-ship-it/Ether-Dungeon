@@ -1275,7 +1275,7 @@ export class Map {
         }
     }
 
-    draw(ctx, camera) {
+    draw(ctx, camera, debugMode = false) {
         const startX = Math.floor(camera.x / this.tileSize);
         const startY = Math.floor(camera.y / this.tileSize);
         const endX = startX + Math.ceil(camera.width / this.tileSize) + 1;
@@ -1360,38 +1360,40 @@ export class Map {
         }
 
         // --- Debug Visualization ---
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = '10px sans-serif';
+        if (debugMode) {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = '10px sans-serif';
 
-        // 1. Draw "Path" on path tiles
-        for (let y = Math.max(0, startY); y < Math.min(this.height, endY); y++) {
-            for (let x = Math.max(0, startX); x < Math.min(this.width, endX); x++) {
-                if (this.tiles[y][x] === 0 && this.roomGrid[y][x] === -1) {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                    ctx.fillText('Path', x * this.tileSize + this.tileSize / 2, y * this.tileSize + this.tileSize / 2);
+            // 1. Draw "Path" on path tiles
+            for (let y = Math.max(0, startY); y < Math.min(this.height, endY); y++) {
+                for (let x = Math.max(0, startX); x < Math.min(this.width, endX); x++) {
+                    if (this.tiles[y][x] === 0 && this.roomGrid[y][x] === -1) {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                        ctx.fillText('Path', x * this.tileSize + this.tileSize / 2, y * this.tileSize + this.tileSize / 2);
+                    }
                 }
             }
-        }
 
-        // 2. Draw Room Labels and Entrances
-        for (let room of this.rooms) {
-            // Check visibility (loose check)
-            if (room.x + room.w < startX || room.x > endX || room.y + room.h < startY || room.y > endY) continue;
+            // 2. Draw Room Labels and Entrances
+            for (let room of this.rooms) {
+                // Check visibility (loose check)
+                if (room.x + room.w < startX || room.x > endX || room.y + room.h < startY || room.y > endY) continue;
 
-            // Room Label
-            ctx.fillStyle = 'white';
-            ctx.font = '14px sans-serif';
-            ctx.fillText(`Room ${room.id}`, (room.x + room.w / 2) * this.tileSize, (room.y + room.h / 2) * this.tileSize);
+                // Room Label
+                ctx.fillStyle = 'white';
+                ctx.font = '14px sans-serif';
+                ctx.fillText(`Room ${room.id}`, (room.x + room.w / 2) * this.tileSize, (room.y + room.h / 2) * this.tileSize);
 
-            // Connectors (Entrances)
-            ctx.font = '10px sans-serif';
-            ctx.fillStyle = '#00ff00';
-            for (let c of room.connectors) {
-                // Determine screen position
-                const cx = c.x * this.tileSize + this.tileSize / 2;
-                const cy = c.y * this.tileSize + this.tileSize / 2;
-                ctx.fillText('Door', cx, cy);
+                // Connectors (Entrances)
+                ctx.font = '10px sans-serif';
+                ctx.fillStyle = '#00ff00';
+                for (let c of room.connectors) {
+                    // Determine screen position
+                    const cx = c.x * this.tileSize + this.tileSize / 2;
+                    const cy = c.y * this.tileSize + this.tileSize / 2;
+                    ctx.fillText('Door', cx, cy);
+                }
             }
         }
     }
