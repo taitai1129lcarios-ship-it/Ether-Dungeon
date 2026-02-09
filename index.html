@@ -27,33 +27,65 @@
     <div id="game-container">
         <canvas id="gameCanvas" width="800" height="600"></canvas>
         <div id="ui-layer">
-            <div id="health-display">HP: <span id="hp-value">100</span></div>
+            <div id="health-bar-container">
+                <div id="health-bar-label">HP</div>
+                <div id="health-bar-track">
+                    <div id="health-bar-fill"></div>
+                    <div id="health-bar-text"><span id="hp-value">100</span> / <span id="hp-max">100</span></div>
+                </div>
+            </div>
             <div id="level-display">LV: <span id="level-value">1</span></div>
+        </div>
+
+        <!-- Skill Selection Modal -->
+        <div id="skill-selection-modal" style="display: none;">
+            <div class="skill-selection-container">
+                <h2>スキルを選択</h2>
+                <div id="skill-selection-cards">
+                    <!-- Cards will be injected here -->
+                </div>
+            </div>
         </div>
         <div id="skill-bar">
             <div class="skill-slot" id="skill-normal">
                 <div class="key-hint">Space</div>
                 <img class="skill-icon" style="display:none">
+                <div class="skill-fallback-text" style="display:none"></div>
                 <div class="cooldown-overlay"></div>
                 <div class="cooldown-text"></div>
+                <div class="stack-count"></div>
             </div>
-            <div class="skill-slot" id="skill-primary">
+            <div class="skill-slot" id="skill-primary1">
                 <div class="key-hint">E</div>
                 <img class="skill-icon" style="display:none">
+                <div class="skill-fallback-text" style="display:none"></div>
                 <div class="cooldown-overlay"></div>
                 <div class="cooldown-text"></div>
+                <div class="stack-count"></div>
+            </div>
+            <div class="skill-slot" id="skill-primary2">
+                <div class="key-hint">Q</div>
+                <img class="skill-icon" style="display:none">
+                <div class="skill-fallback-text" style="display:none"></div>
+                <div class="cooldown-overlay"></div>
+                <div class="cooldown-text"></div>
+                <div class="stack-count"></div>
             </div>
             <div class="skill-slot" id="skill-secondary">
                 <div class="key-hint">Shift</div>
                 <img class="skill-icon" style="display:none">
+                <div class="skill-fallback-text" style="display:none"></div>
                 <div class="cooldown-overlay"></div>
                 <div class="cooldown-text"></div>
+                <div class="stack-count"></div>
             </div>
             <div class="skill-slot" id="skill-ultimate">
-                <div class="key-hint">Q</div>
+                <div class="key-hint">X</div>
                 <img class="skill-icon" style="display:none">
+                <div class="skill-fallback-text" style="display:none"></div>
                 <div class="cooldown-overlay"></div>
                 <div class="cooldown-text"></div>
+                <div class="stack-count"></div>
             </div>
         </div>
 
@@ -70,10 +102,15 @@
                                 <img class="skill-icon" style="display:none">
                                 <div class="slot-content" id="equip-normal">なし</div>
                             </div>
-                            <div class="equip-slot" data-type="primary">
-                                <div class="slot-label">メイン (E)</div>
+                            <div class="equip-slot" data-type="primary1">
+                                <div class="slot-label">メイン1 (E)</div>
                                 <img class="skill-icon" style="display:none">
-                                <div class="slot-content" id="equip-primary">なし</div>
+                                <div class="slot-content" id="equip-primary1">なし</div>
+                            </div>
+                            <div class="equip-slot" data-type="primary2">
+                                <div class="slot-label">メイン2 (Q)</div>
+                                <img class="skill-icon" style="display:none">
+                                <div class="slot-content" id="equip-primary2">なし</div>
                             </div>
                             <div class="equip-slot" data-type="secondary">
                                 <div class="slot-label">サブ (Shift)</div>
@@ -81,7 +118,7 @@
                                 <div class="slot-content" id="equip-secondary">なし</div>
                             </div>
                             <div class="equip-slot" data-type="ultimate">
-                                <div class="slot-label">必殺技 (Q)</div>
+                                <div class="slot-label">必殺技 (X)</div>
                                 <img class="skill-icon" style="display:none">
                                 <div class="slot-content" id="equip-ultimate">なし</div>
                             </div>

@@ -32,9 +32,52 @@ canvas {
     text-shadow: 1px 1px 2px black;
 }
 
-#health-display {
-    color: #ff4444;
+#health-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 5px;
+}
+
+#health-bar-label {
+    color: #ff4444;
+    font-weight: bold;
+    font-size: 20px;
+    text-shadow: 1px 1px 2px black;
+}
+
+#health-bar-track {
+    position: relative;
+    width: 200px;
+    height: 20px;
+    background-color: #333;
+    border: 2px solid #555;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+#health-bar-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background-color: #ff4444;
+    transition: width 0.2s ease-out;
+}
+
+#health-bar-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    text-shadow: 1px 1px 1px black;
+    z-index: 1;
+    white-space: nowrap;
 }
 
 #level-display {
@@ -111,6 +154,19 @@ canvas {
     z-index: 4;
 }
 
+.stack-count {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 0 #000;
+    z-index: 5;
+    pointer-events: none;
+    display: none;
+}
+
 /* Inventory UI */
 #inventory-screen {
     position: absolute;
@@ -170,6 +226,17 @@ canvas {
 }
 
 /* Skill Icons */
+.skill-fallback-text {
+    font-size: 10px;
+    text-align: center;
+    word-break: break-word;
+    padding: 2px;
+    line-height: 1.1;
+    color: #fff;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 #000;
+}
+
 .skill-icon {
     width: 40px;
     height: 40px;
@@ -342,4 +409,155 @@ canvas {
 
 #close-inventory:hover {
     background-color: #555;
+}
+
+/* Skill Selection Modal */
+#skill-selection-modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+    /* Above inventory */
+}
+
+.skill-selection-container {
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 15px;
+    border: 1px solid #444;
+    text-align: center;
+    width: 90%;
+    max-width: 900px;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+}
+
+.skill-selection-container h2 {
+    font-size: 32px;
+    color: #ffd700;
+    margin-bottom: 40px;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    font-family: 'Segoe UI', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+#skill-selection-cards {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: nowrap;
+    /* Force horizontal layout */
+    overflow-x: auto;
+    /* Scroll if needed */
+    padding: 40px 10px 10px 10px;
+    /* Increased top padding for hover */
+}
+
+.skill-card {
+    background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+    border: 2px solid #555;
+    border-radius: 12px;
+    width: 220px;
+    min-height: 320px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.skill-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    border-color: #ffd700;
+    box-shadow: 0 10px 30px rgba(255, 215, 0, 0.2);
+    background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
+    z-index: 10;
+}
+
+.skill-card-icon {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    margin-bottom: 20px;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.1));
+}
+
+.skill-card-name {
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 10px;
+    text-align: center;
+    text-shadow: 1px 1px 2px #000;
+}
+
+.skill-card-type {
+    font-size: 11px;
+    color: #ccc;
+    background-color: #000;
+    padding: 4px 10px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 1px solid #444;
+}
+
+.skill-card-desc {
+    font-size: 14px;
+    color: #ddd;
+    text-align: left;
+    line-height: 1.5;
+    flex: 1;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+/* Card Type Styling */
+.skill-card[data-type="normal"] {
+    border-color: #888;
+}
+
+.skill-card[data-type="normal"]:hover {
+    border-color: #fff;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.skill-card[data-type="primary"] {
+    border-color: #0088cc;
+}
+
+.skill-card[data-type="primary"]:hover {
+    border-color: #00ccff;
+    box-shadow: 0 0 20px rgba(0, 200, 255, 0.3);
+}
+
+.skill-card[data-type="secondary"] {
+    border-color: #00aa00;
+}
+
+.skill-card[data-type="secondary"]:hover {
+    border-color: #00ff00;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+.skill-card[data-type="ultimate"] {
+    border-color: #aa00aa;
+}
+
+.skill-card[data-type="ultimate"]:hover {
+    border-color: #ff00ff;
+    box-shadow: 0 0 25px rgba(255, 0, 255, 0.4);
 }

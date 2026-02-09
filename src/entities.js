@@ -14,6 +14,7 @@ export class Enemy extends Entity {
     constructor(game, x, y, width, height, color, hp, speed, textureKey) {
         super(game, x, y, width, height, color, hp);
         this.speed = speed;
+        this.flashTimer = 0; // Initialize flash timer
         this.image = new Image();
         if (textures[textureKey]) {
             this.image.src = textures[textureKey];
@@ -21,17 +22,24 @@ export class Enemy extends Entity {
     }
 
     update(dt) {
-        // Simple tracking AI
-        const dx = this.game.player.x - this.x;
-        const dy = this.game.player.y - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist > 0 && dist < 500) {
-            this.vx = (dx / dist) * this.speed;
-            this.vy = (dy / dist) * this.speed;
-        } else {
+        // Decrease flash timer
+        if (this.flashTimer > 0) {
+            this.flashTimer -= dt;
             this.vx = 0;
             this.vy = 0;
+        } else {
+            // Simple tracking AI
+            const dx = this.game.player.x - this.x;
+            const dy = this.game.player.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > 0 && dist < 500) {
+                this.vx = (dx / dist) * this.speed;
+                this.vy = (dy / dist) * this.speed;
+            } else {
+                this.vx = 0;
+                this.vy = 0;
+            }
         }
 
         super.update(dt);
@@ -48,6 +56,9 @@ export class Enemy extends Entity {
     }
 
     takeDamage(amount) {
+        // Flash white on hit
+        this.flashTimer = 0.1;
+
         // No invulnerability check for enemies so they can take rapid damage
         this.hp -= amount;
 
@@ -68,12 +79,20 @@ export class Enemy extends Entity {
         if (this.hp <= 0) {
             this.hp = 0;
             this.markedForDeletion = true;
+            this.game.spawnDeathEffect(this);
         }
     }
 
     draw(ctx) {
         if (this.image.complete && this.image.naturalWidth !== 0) {
+            ctx.save();
+            if (this.flashTimer > 0) {
+                // Apply white flash filter
+                ctx.filter = 'brightness(0) invert(1)';
+            }
             ctx.drawImage(this.image, Math.floor(this.x), Math.floor(this.y), this.width, this.height);
+            ctx.restore();
+
             // Draw HP Bar
             if (this.hp < this.maxHp) {
                 ctx.fillStyle = 'red';
@@ -109,6 +128,12 @@ export class Chest extends Entity {
     constructor(game, x, y) {
         super(game, x, y, 30, 30, '#ffd700', 1); // Gold color
         this.opened = false;
+
+        this.imageClosed = new Image();
+        this.imageClosed.src = 'assets/chest_closed.png';
+
+        this.imageOpen = new Image();
+        this.imageOpen.src = 'assets/chest_open.png';
     }
 
     update(dt) {
@@ -116,17 +141,24 @@ export class Chest extends Entity {
     }
 
     draw(ctx) {
-        ctx.fillStyle = this.opened ? '#8B4513' : this.color; // Brown if opened
-        ctx.fillRect(Math.floor(this.x), Math.floor(this.y), this.width, this.height);
+        const img = this.opened ? this.imageOpen : this.imageClosed;
 
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(Math.floor(this.x), Math.floor(this.y), this.width, this.height);
+        if (img.complete && img.naturalWidth !== 0) {
+            ctx.drawImage(img, Math.floor(this.x), Math.floor(this.y), this.width, this.height);
+        } else {
+            // Fallback rendering
+            ctx.fillStyle = this.opened ? '#8B4513' : this.color; // Brown if opened
+            ctx.fillRect(Math.floor(this.x), Math.floor(this.y), this.width, this.height);
 
-        // Lock detail
-        if (!this.opened) {
-            ctx.fillStyle = '#000';
-            ctx.fillRect(Math.floor(this.x + 12), Math.floor(this.y + 12), 6, 6);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(Math.floor(this.x), Math.floor(this.y), this.width, this.height);
+
+            // Lock detail
+            if (!this.opened) {
+                ctx.fillStyle = '#000';
+                ctx.fillRect(Math.floor(this.x + 12), Math.floor(this.y + 12), 6, 6);
+            }
         }
     }
 
@@ -134,28 +166,14 @@ export class Chest extends Entity {
         if (this.opened) return;
         this.opened = true;
 
-        // Drop a random skill
-        const randomSkillData = skillsDB[Math.floor(Math.random() * skillsDB.length)];
-        const skill = createSkill(randomSkillData);
+        // Pick 3 random unique skills
+        const choices = [];
+        // Clone array to avoid modifying original DB if we used splice, 
+        // but better to just pick random indices or filter.
+        // Simple shuffle and take 3
+        const shuffled = [...skillsDB].sort(() => 0.5 - Math.random());
+        const selectedOptions = shuffled.slice(0, 3);
 
-        if (skill) {
-            this.game.player.inventory.push(skill);
-            console.log(`Found skill: ${skill.name}`);
-
-            // Notification
-            this.game.animations.push({
-                type: 'text',
-                text: `Got ${skill.name}!`,
-                x: this.x + this.width / 2,
-                y: this.y,
-                vx: 0,
-                vy: -50,
-                life: 2.0,
-                color: '#ffff00',
-                font: '16px bold sans-serif'
-            });
-
-            this.game.spawnParticles(this.x + this.width / 2, this.y + this.height / 2, 20, '#ffff00');
-        }
+        this.game.triggerSkillSelection(selectedOptions);
     }
 }

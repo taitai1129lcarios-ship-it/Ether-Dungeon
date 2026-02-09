@@ -6,11 +6,16 @@ export class Player extends Entity {
         super(game, x, y, 20, 20, '#4488ff', 100);
         this.speed = 250;
         this.facing = 'right';
+        this.isDashing = false;
+        this.isCasting = false; // Added flag
+        this.dashVx = 0;
+        this.dashVy = 0;
 
         this.inventory = [];
         this.equippedSkills = {
             [SkillType.NORMAL]: null,
-            [SkillType.PRIMARY]: null,
+            'primary1': null,
+            'primary2': null,
             [SkillType.SECONDARY]: null,
             [SkillType.ULTIMATE]: null
         };
@@ -57,8 +62,20 @@ export class Player extends Entity {
             .catch(err => console.error('Failed to load sprite JSON:', err));
     }
 
-    equipSkill(skill) {
-        if (Object.values(SkillType).includes(skill.type)) {
+    equipSkill(skill, slot) {
+        if (skill.type === SkillType.PRIMARY) {
+            // For primary, we need a specific slot (primary1 or primary2)
+            if (slot === 'primary1' || slot === 'primary2') {
+                this.equippedSkills[slot] = skill;
+                console.log(`Equipped ${skill.name} to ${slot}`);
+            } else {
+                // Default to primary1 if undefined? Or find empty?
+                if (!this.equippedSkills['primary1']) this.equippedSkills['primary1'] = skill;
+                else if (!this.equippedSkills['primary2']) this.equippedSkills['primary2'] = skill;
+                else this.equippedSkills['primary1'] = skill; // Overwrite 1
+                console.log(`Auto-equipped ${skill.name} to Primary slot`);
+            }
+        } else if (Object.values(SkillType).includes(skill.type)) {
             this.equippedSkills[skill.type] = skill;
             console.log(`Equipped ${skill.name} to ${skill.type}`);
         }
@@ -69,25 +86,34 @@ export class Player extends Entity {
         this.vy = 0;
         let moving = false;
 
-        if (this.game.input.isDown('ArrowUp') || this.game.input.isDown('KeyW')) {
-            this.vy = -this.speed;
-            this.facing = 'up';
-            moving = true;
-        }
-        if (this.game.input.isDown('ArrowDown') || this.game.input.isDown('KeyS')) {
-            this.vy = this.speed;
-            this.facing = 'down';
-            moving = true;
-        }
-        if (this.game.input.isDown('ArrowLeft') || this.game.input.isDown('KeyA')) {
-            this.vx = -this.speed;
-            this.facing = 'left';
-            moving = true;
-        }
-        if (this.game.input.isDown('ArrowRight') || this.game.input.isDown('KeyD')) {
-            this.vx = this.speed;
-            this.facing = 'right';
-            moving = true;
+        if (this.isDashing) {
+            this.vx = this.dashVx;
+            this.vy = this.dashVy;
+            moving = true; // Still animate walking/dashing
+        } else if (this.isCasting) {
+            // Block movement input
+            moving = false;
+        } else {
+            if (this.game.input.isDown('ArrowUp') || this.game.input.isDown('KeyW')) {
+                this.vy = -this.speed;
+                this.facing = 'up';
+                moving = true;
+            }
+            if (this.game.input.isDown('ArrowDown') || this.game.input.isDown('KeyS')) {
+                this.vy = this.speed;
+                this.facing = 'down';
+                moving = true;
+            }
+            if (this.game.input.isDown('ArrowLeft') || this.game.input.isDown('KeyA')) {
+                this.vx = -this.speed;
+                this.facing = 'left';
+                moving = true;
+            }
+            if (this.game.input.isDown('ArrowRight') || this.game.input.isDown('KeyD')) {
+                this.vx = this.speed;
+                this.facing = 'right';
+                moving = true;
+            }
         }
 
         // Animation Logic
@@ -126,18 +152,21 @@ export class Player extends Entity {
             this.useSkill(SkillType.NORMAL);
         }
         if (this.game.input.isDown('KeyE')) {
-            this.useSkill(SkillType.PRIMARY);
+            this.useSkill('primary1');
+        }
+        if (this.game.input.isDown('KeyQ')) {
+            this.useSkill('primary2');
         }
         if (this.game.input.isDown('ShiftLeft') || this.game.input.isDown('ShiftRight')) {
             this.useSkill(SkillType.SECONDARY);
         }
-        if (this.game.input.isDown('KeyQ')) {
+        if (this.game.input.isDown('KeyX')) {
             this.useSkill(SkillType.ULTIMATE);
         }
     }
 
-    useSkill(type) {
-        const skill = this.equippedSkills[type];
+    useSkill(slot) {
+        const skill = this.equippedSkills[slot];
         if (skill) {
             skill.activate(this, this.game);
         }
@@ -180,20 +209,41 @@ export class Player extends Entity {
             if (this.spriteData.frames && this.spriteData.frames[frameIndex]) {
                 const frameData = this.spriteData.frames[frameIndex].frame;
 
+                // Calculate Aspect Ratio
+                const ratio = frameData.w / frameData.h;
+
+                // Determine drawing size based on collision width
+                // Scaled by 0.7 as requested (1.5 * 0.7 = 1.05)
+                const drawWidth = this.width * 1.05;
+                const drawHeight = drawWidth / ratio;
+
+                // Anchor to Bottom Center of collision box
+                const drawX = this.x + (this.width - drawWidth) / 2;
+                const drawY = this.y + this.height - drawHeight;
+
+                /*
+                if (Math.random() < 0.01) {
+                    console.log('Drawing Player:', { 
+                        idx: frameIndex, 
+                        fx: frameData.x, fy: frameData.y, fw: frameData.w, fh: frameData.h,
+                        dx: drawX, dy: drawY, dw: drawWidth, dh: drawHeight
+                    });
+                }
+                */
+
                 ctx.drawImage(
                     this.image,
                     frameData.x, frameData.y, frameData.w, frameData.h, // Source from JSON
-                    Math.floor(this.x), Math.floor(this.y), this.width, this.height // Destination
+                    Math.floor(drawX), Math.floor(drawY), Math.floor(drawWidth), Math.floor(drawHeight) // Destination
                 );
+            } else {
+                console.warn('Missing frame data for index:', frameIndex);
+                super.draw(ctx); // Fallback
             }
         } else {
             // Fallback (or loading state)
+            if (Math.random() < 0.01) console.log('Player Draw Fallback - ImgComplete:', this.image.complete, 'HasSpriteData:', !!this.spriteData);
             super.draw(ctx);
         }
-
-        // Draw Player HP Bar if not full (optional, or always?)
-        // Let's always look good or maybe top left UI handles it?
-        // Actually UI handles player HP. Entity.draw draws a bar above head.
-        // We can override to NOT draw bar above head because we have UI.
     }
 }

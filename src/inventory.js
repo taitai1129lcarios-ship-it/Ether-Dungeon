@@ -16,8 +16,17 @@ export function initInventory(game) {
             const type = slot.dataset.type;
             if (selectedSkill) {
                 // Check if type matches
-                if (selectedSkill.type === type) {
-                    game.player.equippedSkills[type] = selectedSkill;
+                // Special case for Primary: selectedSkill.type 'primary' can go into 'primary1' or 'primary2'
+                let allowed = false;
+                if (type === 'primary1' || type === 'primary2') {
+                    if (selectedSkill.type === 'primary') allowed = true;
+                } else {
+                    if (selectedSkill.type === type) allowed = true;
+                }
+
+                if (allowed) {
+                    // Equip logic via player method
+                    game.player.equipSkill(selectedSkill, type);
                     renderInventory(game); // Re-render to show updates
                     selectedSkill = null; // Deselect
                 } else {
@@ -45,6 +54,7 @@ export function renderInventory(game) {
     for (let key in game.player.equippedSkills) {
         const skill = game.player.equippedSkills[key];
         const el = document.getElementById(`equip-${key}`);
+        if (!el) continue; // Safety
         const slot = el.parentElement; // .equip-slot
         const icon = slot.querySelector('.skill-icon');
 
@@ -75,11 +85,31 @@ export function renderInventory(game) {
         const item = document.createElement('div');
         item.className = 'inventory-item';
 
-        let iconHtml = '';
+        const img = document.createElement('img');
+        img.className = 'skill-icon';
+
+        const fallback = document.createElement('div');
+        fallback.className = 'skill-fallback-text';
+        fallback.textContent = skill.name;
+        fallback.style.display = 'none';
+
         if (skill.icon) {
-            iconHtml = `<img src="${skill.icon}" class="skill-icon">`;
+            img.src = skill.icon;
+            img.onerror = () => {
+                img.style.display = 'none';
+                fallback.style.display = 'block';
+            };
+            img.onload = () => {
+                img.style.display = 'block';
+                fallback.style.display = 'none';
+            };
+        } else {
+            img.style.display = 'none';
+            fallback.style.display = 'block';
         }
-        item.innerHTML = `${iconHtml}`; // Icon only
+
+        item.appendChild(img);
+        item.appendChild(fallback);
 
         if (selectedSkill === skill) {
             item.classList.add('selected');
