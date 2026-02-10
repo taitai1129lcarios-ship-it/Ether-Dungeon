@@ -335,10 +335,6 @@ class Game {
     }
 
     draw() {
-        if (!this.hasDrawn) {
-            logToScreen("First Draw Call");
-            this.hasDrawn = true;
-        }
         // Clear screen
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0, 0, this.width, this.height);
@@ -378,7 +374,6 @@ class Game {
             if (!this.camera.isVisible(p.x, p.y, p.w || 10, p.h || 10)) return;
 
             this.ctx.save();
-            // ... (rest of projectile drawing code)
             // Fade out in the last 30% of life, or if no maxLife, standard
             let alpha = 1;
             if (p.maxLife) {
@@ -485,10 +480,9 @@ class Game {
                 this.ctx.quadraticCurveTo(thick * 0.4, 0, 0, -len);
                 this.ctx.fill();
 
-                // Glow effect
-                this.ctx.shadowColor = p.color;
-                this.ctx.shadowBlur = 10;
-                // this.ctx.stroke(); // Removed to eliminate black outline
+                // REMOVED: shadowBlur (expensive)
+                // this.ctx.shadowColor = p.color;
+                // this.ctx.shadowBlur = 10;
 
                 this.ctx.restore();
             } else if (p.shape === 'orb') {
@@ -587,29 +581,11 @@ class Game {
                     if (a.spriteData.frames && a.spriteData.frames[frameIndex]) {
                         const frameData = a.spriteData.frames[frameIndex].frame;
 
-                        // Tinting / Silhouette Logic
-                        this.ctx.save();
-                        if (a.isWhite) {
-                            // Turn sprite into pure white silhouette
-                            this.ctx.filter = 'brightness(10) grayscale(100%)';
-                            // brightness(10) blows out colors to white if they are light enough, but might not work for darks.
-                            // Better: brightness(0) invert(1) makes everything white (if background was black... wait).
-                            // brightness(0) makes it black. invert(1) makes black white.
-                            // Yes, this works for non-transparent pixels!
-                            this.ctx.filter = 'brightness(0) invert(1)';
-                        }
+                        // REMOVED: Expensive filter for white silhouette
+                        // this.ctx.filter = 'brightness(0) invert(1)';
+                        // Instead, just draw semi-transparent ghost as is
 
                         this.ctx.globalAlpha = a.life / a.maxLife; // Fade out
-
-                        if (a.spriteData) {
-                            // existing sprite logic if needed, but for now we might just use raw image if no spriteData passed
-                            // But wait, spawnDeathEffect passed `entity.image` and `null` spriteData.
-                            // So we should fall through to a simpler drawImage if spriteData is null but image is present.
-                        }
-
-                        // If we have spriteData (from Dash etc), use it.
-                        // If we don't (from Death Effect), just draw the whole image?
-                        // But Enemy has `image` which IS the sprite.
 
                         if (a.spriteData) {
                             // ... existing logic ...
@@ -627,19 +603,15 @@ class Game {
                                 Math.floor(a.x), Math.floor(a.y), a.w, a.h
                             );
                         }
-
-                        this.ctx.restore();
                     }
                 } else if (a.isWhite && a.image) {
-                    // Handle case where we passed image but NO spriteData (e.g. simple enemy death)
-                    this.ctx.save();
-                    this.ctx.filter = 'brightness(0) invert(1)';
+                    // REMOVED: Expensive filter
+                    // this.ctx.filter = 'brightness(0) invert(1)';
                     this.ctx.globalAlpha = a.life / a.maxLife;
                     this.ctx.drawImage(
                         a.image,
                         Math.floor(a.x), Math.floor(a.y), a.w, a.h
                     );
-                    this.ctx.restore();
                 } else {
                     // Fallback Shape
                     this.ctx.fillStyle = a.color;
@@ -787,10 +759,9 @@ window.onload = () => {
         console.log("Game Initialized Successfully.");
     } catch (e) {
         console.error("Game Initialization Failed:", e);
-        document.body.innerHTML += `<div style="position:absolute;top:0;left:0;color:red;background:rgba(0,0,0,0.8);padding:20px;z-index:9999;font-size:24px;">Error: ${e.message}<br><pre>${e.stack}</pre></div>`;
     }
 };
 
 window.addEventListener('error', (e) => {
-    document.body.innerHTML += `<div style="position:absolute;top:50px;left:0;color:yellow;background:rgba(0,0,0,0.8);padding:20px;z-index:9999;font-size:20px;">Runtime Error: ${e.message}</div>`;
+    console.error("Runtime Error:", e.message);
 });
