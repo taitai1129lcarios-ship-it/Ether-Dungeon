@@ -349,21 +349,36 @@ class Game {
         this.ctx.translate(-Math.floor(this.camera.x), -Math.floor(this.camera.y));
 
         this.map.draw(this.ctx, this.camera, this.debugMode);
+
+        // Culling: Chests
         this.chests.forEach(chest => {
-            chest.draw(this.ctx);
-            if (chest.showPrompt) {
-                this.ctx.fillStyle = 'white';
-                this.ctx.font = '14px sans-serif';
-                this.ctx.textAlign = 'center';
-                this.ctx.fillText("SPACE", chest.x + chest.width / 2, chest.y - 10);
+            if (this.camera.isVisible(chest.x, chest.y, chest.width, chest.height)) {
+                chest.draw(this.ctx);
+                if (chest.showPrompt) {
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = '14px sans-serif';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText("SPACE", chest.x + chest.width / 2, chest.y - 10);
+                }
             }
         });
+
         this.player.draw(this.ctx);
-        this.enemies.forEach(enemy => enemy.draw(this.ctx));
+
+        // Culling: Enemies
+        this.enemies.forEach(enemy => {
+            if (this.camera.isVisible(enemy.x, enemy.y, enemy.width, enemy.height)) {
+                enemy.draw(this.ctx);
+            }
+        });
 
         // Draw Projectiles
         this.projectiles.forEach(p => {
+            // Culling: Projectiles (using p.w, p.h which should exist)
+            if (!this.camera.isVisible(p.x, p.y, p.w || 10, p.h || 10)) return;
+
             this.ctx.save();
+            // ... (rest of projectile drawing code)
             // Fade out in the last 30% of life, or if no maxLife, standard
             let alpha = 1;
             if (p.maxLife) {
@@ -497,6 +512,12 @@ class Game {
 
         // Draw Animations
         this.animations.forEach(a => {
+            // Culling: Animations (Particles, Text, etc)
+            // Text may not have w/h, assume small size
+            let aw = a.w || 20;
+            let ah = a.h || 20;
+            if (!this.camera.isVisible(a.x, a.y, aw, ah)) return;
+
             this.ctx.save();
             let alpha = a.life / a.maxLife; // Linear 0 to 1
 

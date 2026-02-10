@@ -44,6 +44,18 @@ export class Camera {
         this.shakeIntensity = intensity;
     }
 
+    isVisible(x, y, w, h) {
+        // Simple AABB check
+        // Add minimal padding to prevent pop-in
+        const padding = 50;
+        return (
+            x + w + padding > this.x &&
+            x - padding < this.x + this.width &&
+            y + h + padding > this.y &&
+            y - padding < this.y + this.height
+        );
+    }
+
     follow(target, dt) {
         let targetX = target.x + target.width / 2 - this.width / 2;
         let targetY = target.y + target.height / 2 - this.height / 2;
