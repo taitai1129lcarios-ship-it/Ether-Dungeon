@@ -1285,21 +1285,18 @@ export class Map {
             }
             // If we get here, no valid spot was found. Skip.
             // If we get here, no valid spot was found. Skip.
+            // If we get here, no valid spot was found. Skip.
         }
-
-        this.prerender();
     }
 
-    prerender() {
-        // Create offscreen canvas
-        this.prerenderCanvas = document.createElement('canvas');
-        this.prerenderCanvas.width = this.pixelWidth;
-        this.prerenderCanvas.height = this.pixelHeight;
-        const ctx = this.prerenderCanvas.getContext('2d');
+    draw(ctx, camera, debugMode = false) {
+        const startX = Math.floor(camera.x / this.tileSize);
+        const startY = Math.floor(camera.y / this.tileSize);
+        const endX = startX + Math.ceil(camera.width / this.tileSize) + 1;
+        const endY = startY + Math.ceil(camera.height / this.tileSize) + 1;
 
-        // Draw all static tiles to this canvas
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
+        for (let y = Math.max(0, startY); y < Math.min(this.height, endY); y++) {
+            for (let x = Math.max(0, startX); x < Math.min(this.width, endX); x++) {
                 if (this.tiles[y][x] === 1) {
                     // Check if tile below is floor (to determine front face)
                     const isFrontWall = y < this.height - 1 && this.tiles[y + 1][x] === 0;
@@ -1359,47 +1356,9 @@ export class Map {
                 }
             }
         }
-        console.log("Map Prerendered");
-    }
-
-    draw(ctx, camera, debugMode = false) {
-        // Draw the visible portion of the pre-rendered map
-        // We need source coordinates (from camera) and destination coordinates (usually 0,0 but handled by ctx.translate in main)
-
-        // Ensure Source X/Y are within bounds
-        const sx = Math.max(0, Math.floor(camera.x));
-        const sy = Math.max(0, Math.floor(camera.y));
-        const sWidth = Math.min(this.pixelWidth - sx, camera.width);
-        const sHeight = Math.min(this.pixelHeight - sy, camera.height);
-
-        // Since main.js does ctx.translate(-camera.x, -camera.y), we just draw the whole map?
-        // NO. If the map is huge (3200x2400), drawing the WHOLE image every frame might still be heavy if not culled by browser?
-        // Actually, drawImage with 9 arguments allows us to draw ONLY the visible slice.
-        // But wait, the context is ALREADY translated by -camera.x, -camera.y.
-        // So if we draw at (0,0), it will be placed correctly in the world.
-        // If we want to OPTIMIZE, we should chop the source image.
-
-        // HOWEVER, to keep it simple and rely on the fact that we are drawing a canvas to a canvas:
-        // ctx.drawImage(this.prerenderCanvas, 0, 0); 
-        // This works because of the translation. Browser usually handles off-screen clipping well.
-        // BUT, for 80x60 tiles, 3200x2400 is not that big. 
-        // Let's try drawing the sub-rectangle for maximum performance.
-
-        if (sWidth > 0 && sHeight > 0) {
-            ctx.drawImage(
-                this.prerenderCanvas,
-                sx, sy, sWidth, sHeight, // Source
-                sx, sy, sWidth, sHeight  // Destination (same coordinates because of world translation)
-            );
-        }
 
         // --- Debug Visualization ---
         if (debugMode) {
-            const startX = Math.floor(camera.x / this.tileSize);
-            const startY = Math.floor(camera.y / this.tileSize);
-            const endX = startX + Math.ceil(camera.width / this.tileSize) + 1;
-            const endY = startY + Math.ceil(camera.height / this.tileSize) + 1;
-
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.font = '10px sans-serif';
