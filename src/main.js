@@ -326,11 +326,18 @@ class Game {
         this.projectiles = this.projectiles.filter(p => p.life > 0);
 
 
-        if (this.uiHp) this.uiHp.textContent = Math.ceil(this.player.hp);
-        if (this.uiHpMax) this.uiHpMax.textContent = Math.ceil(this.player.maxHp);
-        if (this.uiHpBar) {
-            const pct = Math.max(0, Math.min(100, (this.player.hp / this.player.maxHp) * 100));
-            this.uiHpBar.style.width = `${pct}%`;
+        const hp = Math.ceil(this.player.hp);
+        const maxHp = Math.ceil(this.player.maxHp);
+
+        if (hp !== this.lastHp || maxHp !== this.lastMaxHp) {
+            if (this.uiHp) this.uiHp.textContent = hp;
+            if (this.uiHpMax) this.uiHpMax.textContent = maxHp;
+            if (this.uiHpBar) {
+                const pct = Math.max(0, Math.min(100, (this.player.hp / this.player.maxHp) * 100));
+                this.uiHpBar.style.width = `${pct}%`;
+            }
+            this.lastHp = hp;
+            this.lastMaxHp = maxHp;
         }
     }
 

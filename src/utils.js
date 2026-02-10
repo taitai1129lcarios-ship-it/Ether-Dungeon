@@ -1284,68 +1284,60 @@ export class Map {
                 }
             }
             // If we get here, no valid spot was found. Skip.
+            // If we get here, no valid spot was found. Skip.
         }
+
+        this.prerender();
     }
 
-    draw(ctx, camera, debugMode = false) {
-        const startX = Math.floor(camera.x / this.tileSize);
-        const startY = Math.floor(camera.y / this.tileSize);
-        const endX = startX + Math.ceil(camera.width / this.tileSize) + 1;
-        const endY = startY + Math.ceil(camera.height / this.tileSize) + 1;
+    prerender() {
+        // Create offscreen canvas
+        this.prerenderCanvas = document.createElement('canvas');
+        this.prerenderCanvas.width = this.pixelWidth;
+        this.prerenderCanvas.height = this.pixelHeight;
+        const ctx = this.prerenderCanvas.getContext('2d');
 
-        for (let y = Math.max(0, startY); y < Math.min(this.height, endY); y++) {
-            for (let x = Math.max(0, startX); x < Math.min(this.width, endX); x++) {
+        // Draw all static tiles to this canvas
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
                 if (this.tiles[y][x] === 1) {
                     // Check if tile below is floor (to determine front face)
                     const isFrontWall = y < this.height - 1 && this.tiles[y + 1][x] === 0;
 
                     if (isFrontWall) {
-                        // Draw Wall Face (Image Texture)
+                        // Draw Wall Face
                         if (this.wallImage.complete && this.wallImage.naturalWidth !== 0) {
                             ctx.drawImage(this.wallImage, Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
                         } else {
-                            // Fallback if image not loaded
                             ctx.fillStyle = '#666';
                             ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
                         }
                     } else {
-                        // Draw Wall Top (Roof)
+                        // Draw Wall Top
                         ctx.fillStyle = '#333';
                         ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
                         ctx.strokeStyle = '#222';
                         ctx.strokeRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
                     }
                 } else if (this.tiles[y][x] === 2) {
-                    // LOCKED DOOR (Red Diagonal Stripes)
+                    // LOCKED DOOR
                     const tx = Math.floor(x * this.tileSize);
                     const ty = Math.floor(y * this.tileSize);
-
-                    // Background
-                    ctx.fillStyle = '#330000'; // Dark Red
+                    ctx.fillStyle = '#330000';
                     ctx.fillRect(tx, ty, this.tileSize, this.tileSize);
-
-                    // Stripes
-                    ctx.strokeStyle = '#ff0000'; // Bright Red
+                    ctx.strokeStyle = '#ff0000';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-
-                    // Stripe 1
                     ctx.moveTo(tx, ty + this.tileSize);
                     ctx.lineTo(tx + this.tileSize, ty);
-
-                    // Stripe 2 (Top Left corner)
                     ctx.moveTo(tx, ty + this.tileSize / 2);
                     ctx.lineTo(tx + this.tileSize / 2, ty);
-
-                    // Stripe 3 (Bottom Right corner)
                     ctx.moveTo(tx + this.tileSize / 2, ty + this.tileSize);
                     ctx.lineTo(tx + this.tileSize, ty + this.tileSize / 2);
-
                     ctx.stroke();
-
-                    // Border
                     ctx.strokeRect(tx, ty, this.tileSize, this.tileSize);
                 } else {
+                    // FLOOR
                     ctx.fillStyle = '#222';
                     ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
                     ctx.strokeStyle = '#2a2a2a';
@@ -1355,12 +1347,9 @@ export class Map {
                     if (this.roomGrid[y][x] !== -1) {
                         const roomId = this.roomGrid[y][x];
                         const room = this.rooms[roomId];
-                        // Fix: rooms array might not be indexed by ID if IDs are not sequential, but logic assigns index as ID.
-                        // Assuming roomGrid ID corresponds to rooms index.
                         if (room && room.type === 'staircase') {
                             const centerX = room.x + Math.floor(room.w / 2);
                             const centerY = room.y + Math.floor(room.h / 2);
-                            // Draw 2x2 stairs in center
                             if ((x === centerX || x === centerX - 1) && (y === centerY || y === centerY - 1)) {
                                 ctx.fillStyle = '#4488ff';
                                 ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
@@ -1370,9 +1359,47 @@ export class Map {
                 }
             }
         }
+        console.log("Map Prerendered");
+    }
+
+    draw(ctx, camera, debugMode = false) {
+        // Draw the visible portion of the pre-rendered map
+        // We need source coordinates (from camera) and destination coordinates (usually 0,0 but handled by ctx.translate in main)
+
+        // Ensure Source X/Y are within bounds
+        const sx = Math.max(0, Math.floor(camera.x));
+        const sy = Math.max(0, Math.floor(camera.y));
+        const sWidth = Math.min(this.pixelWidth - sx, camera.width);
+        const sHeight = Math.min(this.pixelHeight - sy, camera.height);
+
+        // Since main.js does ctx.translate(-camera.x, -camera.y), we just draw the whole map?
+        // NO. If the map is huge (3200x2400), drawing the WHOLE image every frame might still be heavy if not culled by browser?
+        // Actually, drawImage with 9 arguments allows us to draw ONLY the visible slice.
+        // But wait, the context is ALREADY translated by -camera.x, -camera.y.
+        // So if we draw at (0,0), it will be placed correctly in the world.
+        // If we want to OPTIMIZE, we should chop the source image.
+
+        // HOWEVER, to keep it simple and rely on the fact that we are drawing a canvas to a canvas:
+        // ctx.drawImage(this.prerenderCanvas, 0, 0); 
+        // This works because of the translation. Browser usually handles off-screen clipping well.
+        // BUT, for 80x60 tiles, 3200x2400 is not that big. 
+        // Let's try drawing the sub-rectangle for maximum performance.
+
+        if (sWidth > 0 && sHeight > 0) {
+            ctx.drawImage(
+                this.prerenderCanvas,
+                sx, sy, sWidth, sHeight, // Source
+                sx, sy, sWidth, sHeight  // Destination (same coordinates because of world translation)
+            );
+        }
 
         // --- Debug Visualization ---
         if (debugMode) {
+            const startX = Math.floor(camera.x / this.tileSize);
+            const startY = Math.floor(camera.y / this.tileSize);
+            const endX = startX + Math.ceil(camera.width / this.tileSize) + 1;
+            const endY = startY + Math.ceil(camera.height / this.tileSize) + 1;
+
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.font = '10px sans-serif';
