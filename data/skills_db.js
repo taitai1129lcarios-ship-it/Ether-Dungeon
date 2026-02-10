@@ -58,6 +58,7 @@ export const skillsDB = [
             crackle: true, // Keep logic, but update impl to use assets
             onHitEffect: 'lightning_burst' // New param to trigger burst
         },
+    },
     {
         id: 'fireball',
         name: 'ファイアボール', // Fireball
