@@ -71,7 +71,7 @@ export const skillsDB = [
         description: '周囲に電撃を帯びた爆発を起こす。',
         params: {
             damage: 3, // Low damage per tick
-            range: 80,
+            range: 100, // +25% range (was 80)
             duration: 1.0, // Lasts 1 second
             interval: 0.1, // Damage every 0.1s (10 ticks total = 100 dmg)
             color: '#ffff00', // Yellow
@@ -80,8 +80,8 @@ export const skillsDB = [
             // Visual Animation
             spriteSheet: 'assets/thunder_burst.png',
             spriteData: null, // No JSON for single image
-            width: 160, // Match range * 2
-            height: 160,
+            width: 200, // Match range * 2
+            height: 200,
             frames: 1, // Single frame
             frameRate: 0.1, // Not used for single frame but good practice
             // scale: 1.0, // Force Fit to 160x160 instead
