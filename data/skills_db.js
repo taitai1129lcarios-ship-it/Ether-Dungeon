@@ -70,7 +70,7 @@ export const skillsDB = [
         behavior: 'area_blast',
         description: '周囲に電撃を帯びた爆発を起こす。',
         params: {
-            damage: 10, // Low damage per tick
+            damage: 3, // Low damage per tick
             range: 80,
             duration: 1.0, // Lasts 1 second
             interval: 0.1, // Damage every 0.1s (10 ticks total = 100 dmg)
