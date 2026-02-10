@@ -49,15 +49,15 @@ export const skillsDB = [
         params: {
             damage: 15,
             speed: 900,
-            width: 40, // Length (Horizontal default)
-            height: 6, // Thickness
+            width: 60, // Longer
+            height: 15, // Thicker for sprite
             life: 0.5,
-            color: '#ffffcc', // White-Yellow
-            trailColor: '#ffff00', // Yellow Trail
-            shape: 'triangle', // Pointy
-            crackle: true // Lightning Effect
-        }
-    },
+            color: '#a5f2f3', // Tint?
+            // shape: 'triangle', // REMOVED: Use sprite
+            spriteSheet: 'assets/lightning_part_01.png', // Main projectile body
+            crackle: true, // Keep logic, but update impl to use assets
+            onHitEffect: 'lightning_burst' // New param to trigger burst
+        },
     {
         id: 'fireball',
         name: 'ファイアボール', // Fireball
