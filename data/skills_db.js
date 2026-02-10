@@ -39,6 +39,25 @@ export const skillsDB = [
         }
     },
     {
+        id: 'lightning_needle',
+        name: 'ライトニングニードル', // Lightning Needle
+        type: 'normal',
+        icon: 'assets/icon_needle.png',
+        cooldown: 0.3,
+        behavior: 'projectile',
+        description: '前方に極細の電気の針を飛ばす。弾速が非常に速い。',
+        params: {
+            damage: 15,
+            speed: 900, // Very Fast
+            width: 8,
+            height: 30, // Long and thin
+            life: 0.5,
+            color: '#a5f2f3', // Cyan
+            trailColor: 'rgba(100, 255, 255, 0.6)',
+            shape: 'rect' // Simple rectangle for needle
+        }
+    },
+    {
         id: 'fireball',
         name: 'ファイアボール', // Fireball
         type: 'primary',
