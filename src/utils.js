@@ -1284,8 +1284,6 @@ export class Map {
                 }
             }
             // If we get here, no valid spot was found. Skip.
-            // If we get here, no valid spot was found. Skip.
-            // If we get here, no valid spot was found. Skip.
         }
     }
 
@@ -1302,39 +1300,52 @@ export class Map {
                     const isFrontWall = y < this.height - 1 && this.tiles[y + 1][x] === 0;
 
                     if (isFrontWall) {
-                        // Draw Wall Face
+                        // Draw Wall Face (Image Texture)
                         if (this.wallImage.complete && this.wallImage.naturalWidth !== 0) {
                             ctx.drawImage(this.wallImage, Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
                         } else {
+                            // Fallback if image not loaded
                             ctx.fillStyle = '#666';
                             ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
                         }
                     } else {
-                        // Draw Wall Top
+                        // Draw Wall Top (Roof)
                         ctx.fillStyle = '#333';
                         ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
                         ctx.strokeStyle = '#222';
                         ctx.strokeRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
                     }
                 } else if (this.tiles[y][x] === 2) {
-                    // LOCKED DOOR
+                    // LOCKED DOOR (Red Diagonal Stripes)
                     const tx = Math.floor(x * this.tileSize);
                     const ty = Math.floor(y * this.tileSize);
-                    ctx.fillStyle = '#330000';
+
+                    // Background
+                    ctx.fillStyle = '#330000'; // Dark Red
                     ctx.fillRect(tx, ty, this.tileSize, this.tileSize);
-                    ctx.strokeStyle = '#ff0000';
+
+                    // Stripes
+                    ctx.strokeStyle = '#ff0000'; // Bright Red
                     ctx.lineWidth = 2;
                     ctx.beginPath();
+
+                    // Stripe 1
                     ctx.moveTo(tx, ty + this.tileSize);
                     ctx.lineTo(tx + this.tileSize, ty);
+
+                    // Stripe 2 (Top Left corner)
                     ctx.moveTo(tx, ty + this.tileSize / 2);
                     ctx.lineTo(tx + this.tileSize / 2, ty);
+
+                    // Stripe 3 (Bottom Right corner)
                     ctx.moveTo(tx + this.tileSize / 2, ty + this.tileSize);
                     ctx.lineTo(tx + this.tileSize, ty + this.tileSize / 2);
+
                     ctx.stroke();
+
+                    // Border
                     ctx.strokeRect(tx, ty, this.tileSize, this.tileSize);
                 } else {
-                    // FLOOR
                     ctx.fillStyle = '#222';
                     ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
                     ctx.strokeStyle = '#2a2a2a';
@@ -1344,9 +1355,12 @@ export class Map {
                     if (this.roomGrid[y][x] !== -1) {
                         const roomId = this.roomGrid[y][x];
                         const room = this.rooms[roomId];
+                        // Fix: rooms array might not be indexed by ID if IDs are not sequential, but logic assigns index as ID.
+                        // Assuming roomGrid ID corresponds to rooms index.
                         if (room && room.type === 'staircase') {
                             const centerX = room.x + Math.floor(room.w / 2);
                             const centerY = room.y + Math.floor(room.h / 2);
+                            // Draw 2x2 stairs in center
                             if ((x === centerX || x === centerX - 1) && (y === centerY || y === centerY - 1)) {
                                 ctx.fillStyle = '#4488ff';
                                 ctx.fillRect(Math.floor(x * this.tileSize), Math.floor(y * this.tileSize), this.tileSize, this.tileSize);
@@ -1359,6 +1373,11 @@ export class Map {
 
         // --- Debug Visualization ---
         if (debugMode) {
+            const startX = Math.floor(camera.x / this.tileSize);
+            const startY = Math.floor(camera.y / this.tileSize);
+            const endX = startX + Math.ceil(camera.width / this.tileSize) + 1;
+            const endY = startY + Math.ceil(camera.height / this.tileSize) + 1;
+
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.font = '10px sans-serif';

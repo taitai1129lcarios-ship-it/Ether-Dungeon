@@ -70,7 +70,7 @@ export const skillsDB = [
         behavior: 'area_blast',
         description: '周囲に電撃を帯びた爆発を起こす。',
         params: {
-            damage: 3, // Low damage per tick
+            damage: 10, // Low damage per tick
             range: 80,
             duration: 1.0, // Lasts 1 second
             interval: 0.1, // Damage every 0.1s (10 ticks total = 100 dmg)
@@ -133,7 +133,7 @@ export const skillsDB = [
         name: 'エンバーストライク', // Ember Strike
         type: 'ultimate',
         icon: 'assets/icon_ember_strike.png',
-        cooldown: 10.0,
+        cooldown: 8.0,
         behavior: 'barrage',
         description: '８つの火の玉を連射する奥義。',
         params: {
@@ -142,7 +142,7 @@ export const skillsDB = [
             interval: 0.07,
             spacing: 20,
             angleSpread: 10,
-            damage: 20,
+            damage: 40,
             speed: 550,
             width: 32,
             height: 16,
