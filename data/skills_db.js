@@ -133,7 +133,7 @@ export const skillsDB = [
         name: 'エンバーストライク', // Ember Strike
         type: 'ultimate',
         icon: 'assets/icon_ember_strike.png',
-        cooldown: 8.0,
+        cooldown: 10.0,
         behavior: 'barrage',
         description: '８つの火の玉を連射する奥義。',
         params: {
@@ -142,7 +142,7 @@ export const skillsDB = [
             interval: 0.07,
             spacing: 20,
             angleSpread: 10,
-            damage: 40,
+            damage: 20,
             speed: 550,
             width: 32,
             height: 16,
