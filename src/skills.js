@@ -154,6 +154,42 @@ const spawnProjectile = (game, x, y, vx, vy, params) => {
                     });
                 }
             }
+
+
+            // Crackle Effect (Lightning)
+            if (params.crackle && Math.random() < 0.3) {
+                // Spawn small lightning part
+                const partId = Math.floor(Math.random() * 10) + 1;
+                const partStr = partId < 10 ? `0${partId}` : `${partId}`;
+                const spritePath = `assets/lightning_part_${partStr}.png`;
+
+                game.animations.push({
+                    type: 'particle', // generic type, handled by drawer?
+                    // Actually, let's use spawnProjectile recursively for visual only?
+                    // Or just push a visual projectile directly.
+                    // We need access to spawnProjectile but it's consistent.
+                    x: this.x + Math.random() * this.w,
+                    y: this.y + Math.random() * this.h,
+                    w: 10, h: 10,
+                    vx: 0, vy: 0,
+                    life: 0.1, maxLife: 0.1,
+                    image: new Image(), // We need to load it? Or use existing text texture/color?
+                    // Better to use spawnLightningBurst helper if available in scope?
+                    // It is defined in same file but not exported? It is const.
+                    // We are inside spawnProjectile closure?
+                    // spawnProjectile is defined above.
+                    // Wait, this update function is inside spawnProjectile.
+                    // But spawnLightningBurst is defined AFTER spawnProjectile.
+                    // JS hoisting for const? No.
+                    // We can't call spawnLightningBurst from here if it's defined after.
+                    // But spawnProjectile is defined BEFORE spawnLightningBurst.
+                    // So we can't use it.
+
+                    // Let's just use simple particles for now with Cyan color.
+                    color: '#a5f2f3',
+                    shape: 'rect'
+                });
+            }
         }
     };
     // Finalize
