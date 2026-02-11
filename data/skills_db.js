@@ -8,7 +8,7 @@ export const skillsDB = [
         behavior: 'projectile',
         description: '前方に飛ぶ斬撃を放つ。',
         params: {
-            damage: 25,
+            damage: 15,
             speed: 750, // 1.5x Speed
             life: 0.14, // Distance halved (was 200, now ~105)
             width: 14,
@@ -47,15 +47,20 @@ export const skillsDB = [
         behavior: 'projectile',
         description: '前方に極細の電気の針を飛ばす。弾速が非常に速い。',
         params: {
-            damage: 15,
-            speed: 900,
-            width: 60, // Longer
-            height: 15, // Thicker for sprite
-            life: 0.5,
-            color: '#a5f2f3', // Tint?
-            // shape: 'triangle', // REMOVED: Use sprite
-            spriteSheet: 'assets/lightning_part_01.png', // Main projectile body
-            crackle: true, // Keep logic, but update impl to use assets
+            damage: 3, // 3 damage per tick
+            tickCount: 3, // 3 hits total
+            tickInterval: 0.1, // 0.1s interval (0.5s duration)
+            range: 600,
+            speed: 1500, // 3x Speed
+            width: 70, // Longer
+            height: 6, // Sharp/Thin
+            life: 0.17, // 1/3 Life (Same range)
+            color: '#FFFFFF', // White
+            shape: 'triangle', // Sharp needle shape
+            // spriteSheet: 'assets/lightning_part_01.png', // REMOVED: Use shape for needle
+            crackle: true, // Asset Lightning Effect enabled
+            crackleColor: '#FFFF00', // Yellow
+            noTrail: true, // Disable orange trail
             onHitEffect: 'lightning_burst' // New param to trigger burst
         },
     },
@@ -193,6 +198,55 @@ export const skillsDB = [
             count: 8,
             speed: 150,
             rotationSpeed: 4
+        }
+    },
+    {
+        id: 'blood_scythe',
+        name: 'ブラッドサイス', // Blood Scythe
+        type: 'primary',
+        icon: null, // Unimplemented
+        cooldown: 2.0,
+        behavior: 'blood_scythe',
+        description: '血濡れた鎌を投げ、加速しながら前進し続ける。触れた敵に連続ダメージ。',
+        params: {
+            damage: 5, // Reduced base damage
+            speed: 800, // High start speed
+            acceleration: -1200, // Decelerate on way out
+            returnSpeed: 1500, // Speed on return
+            range: 800, // Max distance safety
+            width: 96,
+            height: 96,
+            color: '#ff0000', // Red
+            trailColor: 'rgba(255, 0, 0, 0.5)',
+            rotationSpeed: -45, // Reversed and 3x Speed
+            spriteSheet: 'assets/blood_scythe.png',
+            frames: 1,
+            pierce: 999, // Infinite pierce
+            tickInterval: 0.1 // Damage every 0.1s
+        }
+    },
+    {
+        id: 'ice_spike',
+        name: 'アイススパイク', // Ice Spike
+        type: 'primary',
+        icon: null, // Unimplemented icon (will use spriteSheet if icon is null inside createSkill logc? No, logic usually expects icon)
+        // Actually, let's use a placeholder or the sprite sheet as icon if logic allows, but usually icon is separate.
+        // For now, null is fine or we can reuse `icon_ice.png` if it exists (from ice_signal).
+        icon: 'assets/icon_ice_spike.png', // Placeholder name
+        cooldown: 6.0,
+        behavior: 'ice_spike',
+        description: '前方に氷の棘を突き上げる。5秒間持続し、上にいる敵にダメージを与え続ける。',
+        params: {
+            damage: 10, // Initial Hit
+            duration: 1.0,
+            tickInterval: 0.5,
+            count: 30, // Increased count to 30
+            spacing: 5, // Reduced spacing for density (was 8)
+            width: 10, // 15 * 0.7
+            height: 46, // 66 * 0.7
+            spriteSheet: 'assets/ice_spike.png',
+            frames: 1,
+            pierce: 999
         }
     }
 ];

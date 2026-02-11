@@ -57,11 +57,17 @@ export class Skill {
 
 // Helper for spawning projectiles
 const spawnProjectile = (game, x, y, vx, vy, params) => {
-    // Sprite Sheet Logic
+    // Image Caching
     let image = null;
     if (params.spriteSheet) {
-        image = new Image();
-        image.src = params.spriteSheet;
+        if (!window.imageCache) window.imageCache = {};
+        if (window.imageCache[params.spriteSheet]) {
+            image = window.imageCache[params.spriteSheet];
+        } else {
+            image = new Image();
+            image.src = params.spriteSheet;
+            window.imageCache[params.spriteSheet] = image;
+        }
     }
 
     // JSON Data Logic
@@ -138,65 +144,169 @@ const spawnProjectile = (game, x, y, vx, vy, params) => {
                         vx: this.vx * 0.1,
                         vy: this.vy * 0.1
                     });
-                } else {
-                    game.animations.push({
-                        type: 'particle',
-                        x: this.x + Math.random() * this.w,
-                        y: this.y + Math.random() * this.h,
-                        w: 3 + Math.random() * 3,
-                        h: 3 + Math.random() * 3,
-                        life: 0.4,
-                        maxLife: 0.4,
-                        color: params.trailColor || 'rgba(255,100,0,1)',
-                        shape: params.trailShape, // Pass shape
-                        vx: (Math.random() - 0.5) * 30,
-                        vy: (Math.random() - 0.5) * 30
-                    });
                 }
+            }
+
+            // Jitter Effect (Vibration)
+            if (this.shape === 'triangle' && params.crackle) {
+                this.x += (Math.random() - 0.5) * 2;
+                this.y += (Math.random() - 0.5) * 2;
+            }
+            if (!params.noTrail) {
+                game.animations.push({
+                    type: 'particle',
+                    x: this.x + Math.random() * this.w,
+                    y: this.y + Math.random() * this.h,
+                    w: 3 + Math.random() * 3,
+                    h: 3 + Math.random() * 3,
+                    life: 0.4,
+                    maxLife: 0.4,
+                    color: params.trailColor || 'rgba(255,100,0,1)',
+                    shape: params.trailShape, // Pass shape
+                    vx: (Math.random() - 0.5) * 30,
+                    vy: (Math.random() - 0.5) * 30
+                });
             }
 
 
             // Crackle Effect (Lightning)
-            if (params.crackle && Math.random() < 0.3) {
-                // Spawn small lightning part
-                const partId = Math.floor(Math.random() * 10) + 1;
-                const partStr = partId < 10 ? `0${partId}` : `${partId}`;
-                const spritePath = `assets/lightning_part_${partStr}.png`;
+            if (params.crackle) {
+                const count = 2; // Always spawn 2 per frame for intensity
+                for (let i = 0; i < count; i++) {
+                    // Spawn small lightning part
+                    const partId = Math.floor(Math.random() * 10) + 1;
+                    const partStr = partId < 10 ? `0${partId}` : `${partId}`;
+                    const spritePath = `assets/lightning_part_${partStr}.png`;
 
-                game.animations.push({
-                    type: 'particle', // generic type, handled by drawer?
-                    // Actually, let's use spawnProjectile recursively for visual only?
-                    // Or just push a visual projectile directly.
-                    // We need access to spawnProjectile but it's consistent.
-                    x: this.x + Math.random() * this.w,
-                    y: this.y + Math.random() * this.h,
-                    w: 10, h: 10,
-                    vx: 0, vy: 0,
-                    life: 0.1, maxLife: 0.1,
-                    image: new Image(), // We need to load it? Or use existing text texture/color?
-                    // Better to use spawnLightningBurst helper if available in scope?
-                    // It is defined in same file but not exported? It is const.
-                    // We are inside spawnProjectile closure?
-                    // spawnProjectile is defined above.
-                    // Wait, this update function is inside spawnProjectile.
-                    // But spawnLightningBurst is defined AFTER spawnProjectile.
-                    // JS hoisting for const? No.
-                    // We can't call spawnLightningBurst from here if it's defined after.
-                    // But spawnProjectile is defined BEFORE spawnLightningBurst.
-                    // So we can't use it.
+                    // Rear Bias Logic
+                    // Calculate normalized velocity or direction vector
+                    let dirX = 0, dirY = 0;
+                    if (this.vx !== 0 || this.vy !== 0) {
+                        const len = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                        dirX = this.vx / len;
+                        dirY = this.vy / len;
+                    }
 
-                    // Let's just use simple particles for now with Cyan color.
-                    color: '#a5f2f3',
-                    shape: 'rect'
-                });
+                    // Bias towards rear: move center backwards
+                    // Needle length is approx max(w, h).
+                    const length = Math.max(this.w, this.h);
+
+                    // Random Position: 
+                    // Along length: random roughly -0.8 to +0.2 relative to center (mostly behind)
+                    // Along width: random small spread
+
+                    // Refined Spread Logic
+                    // 1. Shift Center further back
+                    const shiftBack = length * 0.4;
+                    const centerX = -dirX * shiftBack;
+                    const centerY = -dirY * shiftBack;
+
+                    // 2. Random Scatter
+                    // Along the path (lengthwise spread): heavy bias to rear
+                    // Use a range that covers mostly the tail area
+                    const spreadLength = length * 0.8;
+                    const rAlong = (Math.random() - 0.5) * spreadLength;
+
+                    // Across the path (widthwise spread): VERY tight to needle
+                    // Needle width is small (e.g., 6px). 
+                    // Let's use a small constant or ratio of width/height min
+                    const spreadWidth = 8; // Tight spread (total 16px width approx)
+                    const rAcross = (Math.random() - 0.5) * spreadWidth;
+
+                    // 3. Combine vectors
+                    // Position = (Center + shift) + (Dir * rAlong) + (Perp * rAcross)
+                    // Perpendicular vector: (-dirY, dirX)
+
+                    const offsetX = centerX + (dirX * rAlong) + (-dirY * rAcross);
+                    const offsetY = centerY + (dirY * rAlong) + (dirX * rAcross);
+
+                    // Determine Filter for Yellow
+                    let filter = 'none';
+                    if (params.crackleColor === '#FFFF00') {
+                        filter = 'sepia(1) saturate(10) hue-rotate(0deg) brightness(1.2)'; // Gold/Yellow
+                    }
+
+                    spawnProjectile(game, this.x + this.w / 2 + offsetX, this.y + this.h / 2 + offsetY, 0, 0, {
+                        visual: true, // Visual only
+                        spriteSheet: spritePath, // Use asset
+                        frames: 1,
+                        life: 0.1, // Quick flash
+                        width: 15 + Math.random() * 20, // Reverted size
+                        height: 15 + Math.random() * 20,
+                        randomRotation: true,
+                        rotation: Math.random() * Math.PI * 2,
+                        color: params.crackleColor || '#a5f2f3',
+                        filter: filter, // Apply filter
+                        blendMode: 'lighter',
+                        noTrail: true
+                    });
+                }
             }
         }
     };
+    // Finalize
     // Finalize
     if (params.visual) {
         proj.type = 'visual_projectile';
         game.animations.push(proj);
     } else {
+        // Multi-Hit Logic via tickCount
+        if (params.tickCount && params.tickCount > 0) {
+            proj.onHitEnemy = function (enemy, gameInstance) {
+                // 1. Initial Hit
+                enemy.takeDamage(this.damage);
+
+                // Visual for hit
+                if (params.onHitEffect === 'lightning_burst') {
+                    spawnLightningBurst(gameInstance, enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, {
+                        burstCount: 3, burstSize: 30, burstSpeed: 100
+                    });
+                }
+
+                // 2. Spawn DoT Logic for remaining ticks
+                const remainingTicks = params.tickCount - 1;
+                const interval = params.tickInterval || 0.1;
+
+                if (remainingTicks > 0) {
+                    gameInstance.animations.push({
+                        type: 'logic',
+                        target: enemy,
+                        damage: this.damage,
+                        ticks: remainingTicks,
+                        timer: 0,
+                        interval: interval,
+                        life: remainingTicks * interval + 0.5, // safety buffer
+                        update: function (dt) {
+                            if (!this.target || this.target.markedForDeletion) {
+                                this.life = 0;
+                                return;
+                            }
+                            this.timer += dt;
+                            if (this.timer >= this.interval) {
+                                this.timer -= this.interval;
+                                this.ticks--;
+
+                                // Deal Damage
+                                this.target.takeDamage(this.damage);
+
+                                // Small visual
+                                gameInstance.spawnParticles(
+                                    this.target.x + this.target.width / 2,
+                                    this.target.y + this.target.height / 2,
+                                    3, '#FFFF00' // Yellow sparks
+                                );
+
+                                if (this.ticks <= 0) this.life = 0;
+                            }
+                        }
+                    });
+                }
+
+                // 3. Destroy Projectile
+                this.life = 0;
+            };
+        }
+
         game.projectiles.push(proj);
     }
 };
@@ -233,6 +343,7 @@ const spawnLightningBurst = (game, x, y, params) => {
             randomRotation: true, // Rotate the part
             rotation: Math.random() * Math.PI * 2, // Initial rotation
             color: '#a5f2f3', // Cyan tint if supported (currently separate draw path)
+            filter: 'sepia(1) saturate(10) hue-rotate(0deg) brightness(1.2)', // Force Yellow
             blendMode: 'lighter', // Additive blending for glow
             noTrail: true // Disable orange trails
         });
@@ -313,7 +424,13 @@ const behaviors = {
             if (params.width && params.height) { let temp = w; w = h; h = temp; }
         }
 
-        spawnProjectile(game, user.x + user.width / 2, user.y + user.height / 2, vx, vy, params);
+        const projParams = { ...params };
+        if (user.facing === 'up' || user.facing === 'down') {
+            projParams.width = w;
+            projParams.height = h;
+        }
+
+        spawnProjectile(game, user.x + user.width / 2, user.y + user.height / 2, vx, vy, projParams);
     },
 
     'barrage': (user, game, params) => {
@@ -766,6 +883,555 @@ const behaviors = {
             };
             game.projectiles.push(proj);
         }
+    },
+
+    'boomerang': (user, game, params) => {
+        // Calculate initial velocity based on facing
+        let vx = 0, vy = 0;
+        const speed = params.speed || 600;
+        if (user.facing === 'left') vx = -speed;
+        if (user.facing === 'right') vx = speed;
+        if (user.facing === 'up') vy = -speed;
+        if (user.facing === 'down') vy = speed;
+
+        const w = params.width || 48;
+        const h = params.height || 48;
+
+        // Image Loading (similar to spawnProjectile)
+        const image = new Image();
+        image.src = params.spriteSheet || params.icon; // Use icon as fallback if no sheet
+
+        const proj = {
+            active: true,
+            type: 'projectile',
+            x: user.x + user.width / 2 - w / 2,
+            y: user.y + user.height / 2 - h / 2,
+            w: w, h: h,
+            vx: vx, vy: vy,
+            life: 5.0, // Safety max life
+            damage: params.damage,
+            color: params.color || 'red',
+            image: image,
+            rotation: 0,
+            spinning: true, // Enable rotation override
+            // Sprite Rendering Required Props
+            frames: 1,
+            frameX: 0,
+            spriteFrames: null, // No JSON for this
+
+            // State
+            state: 0, // 0: Outward, 1: Return
+            maxDist: params.range || 400,
+            distTraveled: 0,
+            owner: user, // Reference to catch
+
+            update: function (dt) {
+                // Rotation
+                this.rotation += (params.rotationSpeed || 15) * dt;
+
+                // Movement Logic
+                // Movement Logic
+                if (this.state === 0) {
+                    // Outward Phase
+                    // Move
+                    const dx = this.vx * dt;
+                    const dy = this.vy * dt;
+                    const nextX = this.x + dx;
+                    const nextY = this.y + dy;
+
+                    // Check Wall Collision
+                    if (game.map.isWall(nextX + this.w / 2, nextY + this.h / 2)) {
+                        this.state = 1; // Force Return
+                        this.vx = 0;
+                        this.vy = 0;
+                    } else {
+                        this.x = nextX;
+                        this.y = nextY;
+                        this.distTraveled += Math.sqrt(dx * dx + dy * dy);
+
+                        if (this.distTraveled >= this.maxDist) {
+                            this.state = 1;
+                            this.vx = 0;
+                            this.vy = 0;
+                        }
+                    }
+                } else {
+                    // Return Phase (ignores walls)
+                    // Accelerate towards owner
+                    const targetX = this.owner.x + this.owner.width / 2 - this.w / 2;
+                    const targetY = this.owner.y + this.owner.height / 2 - this.h / 2;
+
+                    const dx = targetX - this.x;
+                    const dy = targetY - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    // Catch Check
+                    if (dist < 30) {
+                        this.life = 0; // Caught
+                        return;
+                    }
+
+                    // Move towards owner
+                    const returnSpeed = params.returnSpeed || 800; // Fast return
+                    const dirX = dx / dist;
+                    const dirY = dy / dist;
+
+                    this.vx = dirX * returnSpeed;
+                    this.vy = dirY * returnSpeed;
+
+                    this.x += this.vx * dt;
+                    this.y += this.vy * dt;
+                }
+
+                // Trail Effect (Ghost)
+                if (Math.random() < 0.6) {
+                    game.animations.push({
+                        type: 'ghost',
+                        x: this.x,
+                        y: this.y,
+                        w: this.w,
+                        h: this.h,
+                        life: 0.15, // Short life for blur
+                        maxLife: 0.15,
+                        color: params.trailColor || 'rgba(255, 0, 0, 0.5)',
+                        // Pass Sprite Data
+                        image: this.image,
+                        frames: this.frames,
+                        frameX: this.frameX,
+                        rotation: this.rotation, // Pass current rotation
+                        vx: 0, vy: 0
+                    });
+                }
+
+                // Particle Effect (Red Spheres)
+                if (Math.random() < 0.5) {
+                    const size = Math.random() * 4 + 2; // 2-6px
+                    game.animations.push({
+                        type: 'particle', // generic particle
+                        shape: 'circle',
+                        x: this.x + this.w / 2 + (Math.random() - 0.5) * 20,
+                        y: this.y + this.h / 2 + (Math.random() - 0.5) * 20,
+                        w: size, h: size,
+                        life: 0.3, maxLife: 0.3,
+                        color: 'rgba(255, 50, 50, 0.8)',
+                        vx: (Math.random() - 0.5) * 50,
+                        vy: (Math.random() - 0.5) * 50
+                    });
+                }
+            },
+
+            // Allow checking for collision (infinite pierce usually implies not destroying on hit)
+            // But we can implement onHitEnemy if desired. Default projectile logic handles damage.
+            // If pierce is high, it won't be destroyed.
+            pierce: params.pierce || 999
+        };
+
+        game.projectiles.push(proj);
+    },
+
+    'blood_scythe': (user, game, params) => {
+        // Calculate initial velocity based on facing
+        let directionX = 0, directionY = 0;
+        if (user.facing === 'left') directionX = -1;
+        if (user.facing === 'right') directionX = 1;
+        if (user.facing === 'up') directionY = -1;
+        if (user.facing === 'down') directionY = 1;
+
+        // Initial Speed setup
+        const initialSpeed = params.speed || 800; // Fast out
+        const acceleration = params.acceleration || -1200; // Slow down
+        const returnSpeedMax = params.returnSpeed || 1500;
+
+        const w = params.width || 48;
+        const h = params.height || 48;
+
+        // Image Loading (Cached)
+        const imageSrc = params.spriteSheet || params.icon;
+        let image = null;
+        if (imageSrc) {
+            if (!window.imageCache) window.imageCache = {};
+            if (window.imageCache[imageSrc]) {
+                image = window.imageCache[imageSrc];
+            } else {
+                image = new Image();
+                image.src = imageSrc;
+                window.imageCache[imageSrc] = image;
+            }
+        }
+
+        const proj = {
+            active: true,
+            type: 'projectile',
+            x: user.x + user.width / 2 - w / 2,
+            y: user.y + user.height / 2 - h / 2,
+            w: w, h: h,
+            // Velocity components
+            vx: directionX * initialSpeed,
+            vy: directionY * initialSpeed,
+
+            // State
+            state: 0, // 0: Outward, 1: Return
+            currentSpeed: initialSpeed,
+            directionX: directionX,
+            directionY: directionY,
+            acceleration: acceleration,
+
+            owner: user,
+            maxDist: params.range || 800,
+            distTraveled: 0,
+            life: 10,
+
+            damage: params.damage,
+            color: params.color || 'red',
+            image: image,
+            rotation: 0,
+            spinning: true,
+            frames: 1,
+            frameX: 0,
+            spriteFrames: null,
+
+            // Hit Tracking for Continuous Damage
+            hitTimers: new Map(), // Map<EnemyID, TimeSinceLastHit>
+            tickInterval: params.tickInterval || 0.1,
+
+            // Hide fallback rect while loading image to avoid "Red Square" glitch for this specific skill
+            hideWhileLoading: true,
+
+            update: function (dt) {
+                // Rotation
+                this.rotation += (params.rotationSpeed || -15) * dt;
+
+                if (this.state === 0) {
+                    // --- Outward Phase ---
+                    // Decelerate
+                    this.currentSpeed += this.acceleration * dt;
+
+                    // Update Velocity
+                    this.vx = this.directionX * this.currentSpeed;
+                    this.vy = this.directionY * this.currentSpeed;
+
+                    // Move
+                    const dx = this.vx * dt;
+                    const dy = this.vy * dt;
+                    this.x += dx;
+                    this.y += dy;
+
+                    // Switch to Return if stopped or slow enough
+                    if (this.currentSpeed <= 0) {
+                        this.state = 1;
+                        this.currentSpeed = 0;
+                    }
+
+                    // Check Distance safety
+                    this.distTraveled += Math.sqrt(dx * dx + dy * dy);
+                    if (this.distTraveled >= this.maxDist) {
+                        this.state = 1; // Force return
+                    }
+
+                    // Check Wall Collision (Reduced Hitbox to prevent snagging on spawn)
+                    // Use a tiny 4x4 central box for wall checks (Visual is HUGE)
+                    const wallCheckSize = 4;
+                    const wallCheckMargin = (Math.min(this.w, this.h) - wallCheckSize) / 2;
+                    // Ensure margin is positive
+                    const m = wallCheckMargin > 0 ? wallCheckMargin : 0;
+
+                    const wx = this.x + m;
+                    const wy = this.y + m;
+                    const ww = this.w - m * 2;
+                    const wh = this.h - m * 2;
+
+                    if (game.map.isWall(wx, wy) ||
+                        game.map.isWall(wx + ww, wy) ||
+                        game.map.isWall(wx, wy + wh) ||
+                        game.map.isWall(wx + ww, wy + wh)) {
+                        // Undo move (Clamp to previous)
+                        this.x -= dx;
+                        this.y -= dy;
+
+                        // Force state change and zero speed (Immediate Return)
+                        this.state = 1;
+                        this.currentSpeed = 0;
+                    }
+
+                } else {
+                    // --- Return Phase ---
+                    // Accelerate towards owner
+                    const targetX = this.owner.x + this.owner.width / 2 - this.w / 2;
+                    const targetY = this.owner.y + this.owner.height / 2 - this.h / 2;
+
+                    const dx = targetX - this.x;
+                    const dy = targetY - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    // Catch Check
+                    if (dist < 30) {
+                        this.life = -1; // Caught
+                        return;
+                    }
+
+                    // Homing Logic
+                    const dirX = dx / dist;
+                    const dirY = dy / dist;
+
+                    // Accelerate speed
+                    this.currentSpeed += (returnSpeedMax * 1.5) * dt; // Accelerate fast
+                    if (this.currentSpeed > returnSpeedMax) this.currentSpeed = returnSpeedMax;
+
+                    this.vx = dirX * this.currentSpeed;
+                    this.vy = dirY * this.currentSpeed;
+
+                    this.x += this.vx * dt;
+                    this.y += this.vy * dt;
+                }
+
+                // Update Hit Timers
+                for (let [enemyId, timer] of this.hitTimers) {
+                    this.hitTimers.set(enemyId, timer + dt);
+                }
+
+                // Trail Effect (Ghost)
+                if (Math.random() < 0.6) {
+                    game.animations.push({
+                        type: 'ghost',
+                        x: this.x, y: this.y,
+                        w: this.w, h: this.h,
+                        life: 0.15, maxLife: 0.15,
+                        color: params.trailColor || 'rgba(255, 0, 0, 0.5)',
+                        image: this.image,
+                        frames: this.frames,
+                        frameX: this.frameX,
+                        rotation: this.rotation,
+                        vx: 0, vy: 0
+                    });
+                }
+
+                // Scattered Red Particles (Round)
+                // Spawn rate: e.g., 2 per frame on average
+                for (let i = 0; i < 2; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const scatterDist = Math.random() * 30; // Scatter radius
+                    const px = this.x + this.w / 2 + Math.cos(angle) * scatterDist;
+                    const py = this.y + this.h / 2 + Math.sin(angle) * scatterDist;
+
+                    game.animations.push({
+                        type: 'particle',
+                        shape: 'circle',
+                        x: px, y: py,
+                        w: 6, h: 6, // Size
+                        color: `rgba(255, ${Math.floor(Math.random() * 100)}, ${Math.floor(Math.random() * 100)}, 0.8)`, // Red with slight variety
+                        life: 0.4 + Math.random() * 0.2, // Short life
+                        maxLife: 0.6,
+                        vx: (Math.random() - 0.5) * 60, // Random velocity
+                        vy: (Math.random() - 0.5) * 60
+                    });
+                }
+            },
+
+            // Custom Hit Handler
+            onHitEnemy: function (enemy, gameInstance) {
+                // Ensure enemy has an ID for tracking
+                if (!enemy.id) enemy.id = Math.random().toString(36).substr(2, 9);
+
+                let timeSinceLast = this.hitTimers.get(enemy.id);
+
+                // If never hit or interval passed
+                if (timeSinceLast === undefined || timeSinceLast >= this.tickInterval) {
+                    // Deal Damage
+                    enemy.takeDamage(this.damage);
+                    gameInstance.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, 5, 'red');
+
+                    // Reset Timer
+                    this.hitTimers.set(enemy.id, 0);
+                }
+            },
+
+            pierce: params.pierce || 999
+        };
+
+        game.projectiles.push(proj);
+    },
+
+    'ice_spike': function (user, game, params) {
+        // Base spawn center
+        const startX = user.x + user.width / 2;
+        const startY = user.y + user.height / 2;
+
+        // Direction based on Player Facing
+        let dx = 0;
+        let dy = 0;
+        // user.facing is 'left', 'right', 'up', 'down'
+        if (user.facing === 'left') dx = -1;
+        if (user.facing === 'right') dx = 1;
+        if (user.facing === 'up') dy = -1;
+        if (user.facing === 'down') dy = 1;
+
+        // Fallback if no facing (shouldn't happen)
+        if (dx === 0 && dy === 0) dy = 1;
+
+        const count = params.count || 30;
+        const spacing = params.spacing || 5;
+        const duration = params.duration || 1.0; // Life of each spike
+        const width = params.width || 10;
+        const maxH = params.height || 46;
+
+        // Lock movement during activation
+        user.isCasting = true;
+
+        const imageSrc = params.spriteSheet;
+        let image = null;
+        if (imageSrc) {
+            if (!game.images[imageSrc]) {
+                game.images[imageSrc] = new Image();
+                game.images[imageSrc].src = imageSrc;
+            }
+            image = game.images[imageSrc];
+        }
+
+        // Spawner state
+        let spawnedCount = 0;
+        let timer = 0;
+        const spawnInterval = 0.02; // Speed of wave
+
+        game.animations.push({
+            type: 'spawner',
+            life: count * spawnInterval + 1.0, // Ensure it lives long enough
+            update: function (dt) {
+                // Check if finished
+                if (spawnedCount >= count) {
+                    user.isCasting = false;
+                    this.life = 0;
+                    return;
+                }
+
+                timer += dt;
+                while (timer >= spawnInterval && spawnedCount < count) {
+                    timer -= spawnInterval;
+                    spawnedCount++;
+                    const i = spawnedCount;
+
+                    // Calc Base Position along line
+                    let targetX = startX + (dx * spacing * i);
+                    let targetY = startY + (dy * spacing * i);
+
+                    // Apply Perpendicular Offset
+                    const offsetP = (Math.random() * 10) - 5;
+                    if (dx !== 0) {
+                        targetY += offsetP;
+                    } else if (dy !== 0) {
+                        targetX += offsetP;
+                    }
+
+                    const baseY = targetY + maxH / 2;
+
+                    // Random Variation
+                    const scale = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
+                    const angleDeg = (Math.random() * 30) - 15; // -15 to +15 degrees
+                    const angleRad = angleDeg * (Math.PI / 180);
+
+                    const finalW = width * scale;
+                    const finalMaxH = maxH * scale;
+
+                    const proj = {
+                        id: i,
+                        active: true,
+                        type: 'projectile',
+                        x: targetX - finalW / 2,
+                        y: baseY, // Start at bottom
+                        w: finalW,
+                        h: 0, // Start Height 0
+
+                        vx: 0, vy: 0,
+
+                        // Rotation & Anchor
+                        spinning: true,
+                        rotation: angleRad,
+                        anchorX: 0.5,
+                        anchorY: 1.0,
+
+                        life: duration,
+                        maxLife: duration,
+
+                        // Sprite Properties
+                        frameX: 0,
+                        frames: params.frames || 1,
+
+                        // Custom
+                        maxH: finalMaxH,
+                        baseY: baseY,
+                        damage: params.damage,
+                        tickInterval: params.tickInterval || 0.5,
+                        hitTimers: new Map(),
+
+                        image: image,
+                        color: '#a5f2f3',
+                        alpha: 1.0,
+
+                        hideWhileLoading: false,
+                        hasSpawnedEffects: false,
+
+                        update: function (dt) {
+                            // Spawn Particles on first frame active
+                            if (!this.hasSpawnedEffects) {
+                                for (let k = 0; k < 3; k++) {
+                                    game.animations.push({
+                                        type: 'particle',
+                                        x: this.x + this.w / 2,
+                                        y: this.baseY,
+                                        w: 4, h: 4,
+                                        vx: (Math.random() - 0.5) * 100, // Spread X
+                                        vy: -(150 + Math.random() * 150), // Shoot Up
+                                        life: 0.4,
+                                        maxLife: 0.4,
+                                        color: '#a5f2f3',
+                                        update: function (pDt) {
+                                            this.vy += 600 * pDt; // Gravity
+                                        }
+                                    });
+                                }
+                                this.hasSpawnedEffects = true;
+                            }
+
+                            this.life -= dt;
+
+                            // Growth Animation (0.05s)
+                            const timeAlive = this.maxLife - this.life;
+                            const growTime = 0.05;
+
+                            if (timeAlive < growTime) {
+                                this.h = this.maxH * (timeAlive / growTime);
+                            } else {
+                                this.h = this.maxH;
+                            }
+
+                            this.y = this.baseY - this.h;
+
+                            // Fade out check
+                            if (this.life < 0.5) {
+                                this.alpha = this.life / 0.5;
+                            }
+
+                            // Hit Logic
+                            for (let [id, t] of this.hitTimers) {
+                                this.hitTimers.set(id, t + dt);
+                            }
+                        },
+
+                        onHitEnemy: function (enemy, gameInstance) {
+                            if (!enemy.id) enemy.id = Math.random().toString(36).substr(2, 9);
+                            let t = this.hitTimers.get(enemy.id);
+
+                            if (t === undefined || t >= this.tickInterval) {
+                                enemy.takeDamage(this.damage);
+                                gameInstance.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, 5, 'cyan');
+                                this.hitTimers.set(enemy.id, 0);
+                            }
+                        },
+                        pierce: 999
+                    };
+                    game.projectiles.push(proj);
+                }
+            }
+        });
     },
 };
 

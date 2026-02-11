@@ -2,6 +2,9 @@ export class InputHandler {
     constructor() {
         this.keys = {};
         this.pressed = {}; // For single frame press
+        this.mouseX = 0;
+        this.mouseY = 0;
+
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space') e.preventDefault();
             if (!this.keys[e.code]) {
@@ -20,6 +23,17 @@ export class InputHandler {
         });
         window.addEventListener('mouseup', (e) => {
             if (e.button === 0) this.keys['Click'] = false;
+        });
+        window.addEventListener('mousemove', (e) => {
+            const canvas = document.querySelector('canvas');
+            if (canvas) {
+                const rect = canvas.getBoundingClientRect();
+                this.mouseX = e.clientX - rect.left;
+                this.mouseY = e.clientY - rect.top;
+            } else {
+                this.mouseX = e.clientX;
+                this.mouseY = e.clientY;
+            }
         });
     }
     isDown(key) { return this.keys[key]; }

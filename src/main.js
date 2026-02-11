@@ -31,6 +31,7 @@ class Game {
         this.height = this.canvas.height;
         this.zoom = 1.2;
         this.debugMode = false;
+        this.images = {}; // Asset Check
 
         this.input = new InputHandler();
         try {
@@ -299,6 +300,11 @@ class Game {
 
         // Update Projectiles
         this.projectiles.forEach(p => {
+            if (p.startDelay > 0) {
+                p.startDelay -= dt;
+                return;
+            }
+
             p.update(dt);
             // Check collision with enemies
             this.enemies.forEach(e => {
@@ -377,8 +383,12 @@ class Game {
 
         // Draw Projectiles
         this.projectiles.forEach(p => {
+            if (p.startDelay > 0) return;
+
             // Culling: Projectiles (using p.w, p.h which should exist)
             if (!this.camera.isVisible(p.x, p.y, p.w || 10, p.h || 10)) return;
+
+            let drawn = false;
 
             this.ctx.save();
             // Fade out in the last 30% of life, or if no maxLife, standard
@@ -393,120 +403,139 @@ class Game {
             this.ctx.globalAlpha = alpha;
 
             this.ctx.fillStyle = p.color;
-            if (p.image && p.image.complete && p.image.naturalWidth !== 0) {
-                // Draw Sprite Projectile
-                let sx, sy, sw, sh;
+            if (p.image) {
+                if (p.image.complete && p.image.naturalWidth !== 0) {
+                    // Draw Sprite Projectile
+                    let sx, sy, sw, sh;
 
-                if (p.spriteFrames && p.spriteFrames.length > 0) {
-                    // Use precise JSON data
-                    // Ensure frameX is within bounds
-                    const frameData = p.spriteFrames[p.frameX % p.spriteFrames.length];
-                    sx = frameData.x;
-                    sy = frameData.y;
-                    sw = frameData.w;
-                    sh = frameData.h;
-                } else {
-                    // Fallback to uniform grid calculation
-                    sw = p.image.width / p.frames;
-                    sh = p.image.height;
-                    sx = p.frameX * sw;
-                    sy = 0;
-                }
-
-                this.ctx.save();
-                this.ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
-                this.ctx.rotate(Math.atan2(p.vy, p.vx));
-
-                // Ensure we draw the Longest dimension along the Rotated X (Direction of Travel)
-                // Since hitbox (p.w/p.h) might be swapped for vertical travel, we un-swap for local drawing.
-                const destW = Math.max(p.w, p.h);
-                const destH = Math.min(p.w, p.h);
-
-                // Draw centered
-                this.ctx.drawImage(
-                    p.image,
-                    sx, sy, sw, sh,
-                    -destW / 2, -destH / 2, destW, destH
-                );
-                this.ctx.restore();
-
-            } else if (p.shape === 'triangle') {
-                // Determine orientation based on dimensions (AABB logic)
-                this.ctx.beginPath();
-                if (p.w > p.h) {
-                    // Horizontal
-                    if (p.vx > 0) { // Right
-                        this.ctx.moveTo(Math.floor(p.x), Math.floor(p.y));
-                        this.ctx.lineTo(Math.floor(p.x + p.w), Math.floor(p.y + p.h / 2));
-                        this.ctx.lineTo(Math.floor(p.x), Math.floor(p.y + p.h));
-                    } else { // Left
-                        this.ctx.moveTo(Math.floor(p.x + p.w), Math.floor(p.y));
-                        this.ctx.lineTo(Math.floor(p.x), Math.floor(p.y + p.h / 2));
-                        this.ctx.lineTo(Math.floor(p.x + p.w), Math.floor(p.y + p.h));
+                    if (p.spriteFrames && p.spriteFrames.length > 0) {
+                        const frameData = p.spriteFrames[p.frameX % p.spriteFrames.length];
+                        sx = frameData.x;
+                        sy = frameData.y;
+                        sw = frameData.w;
+                        sh = frameData.h;
+                    } else {
+                        sw = p.image.width / p.frames;
+                        sh = p.image.height;
+                        sx = p.frameX * sw;
+                        sy = 0;
                     }
-                } else {
-                    // Vertical
-                    if (p.vy > 0) { // Down
-                        this.ctx.moveTo(Math.floor(p.x), Math.floor(p.y));
-                        this.ctx.lineTo(Math.floor(p.x + p.w / 2), Math.floor(p.y + p.h));
-                        this.ctx.lineTo(Math.floor(p.x + p.w), Math.floor(p.y));
-                    } else { // Up
-                        this.ctx.moveTo(Math.floor(p.x), Math.floor(p.y + p.h));
-                        this.ctx.lineTo(Math.floor(p.x + p.w / 2), Math.floor(p.y));
-                        this.ctx.lineTo(Math.floor(p.x + p.w), Math.floor(p.y + p.h));
+
+                    this.ctx.save();
+                    // Anchor Point Support (Default Center 0.5)
+                    const anchorX = p.anchorX !== undefined ? p.anchorX : 0.5;
+                    const anchorY = p.anchorY !== undefined ? p.anchorY : 0.5;
+
+                    this.ctx.translate(p.x + p.w * anchorX, p.y + p.h * anchorY);
+                    if (p.spinning) {
+                        this.ctx.rotate(p.rotation);
+                    } else {
+                        const angle = (Math.abs(p.vx) > 0.1 || Math.abs(p.vy) > 0.1) ? Math.atan2(p.vy, p.vx) : 0;
+                        this.ctx.rotate(angle);
+                    }
+
+                    // Default to natural dimensions
+                    let destW = p.w;
+                    let destH = p.h;
+
+                    // If moving and not spinning, assume sprite is horizontal and we rotate to velocity
+                    // So we draw "long side" along X axis
+                    if (!p.spinning && (Math.abs(p.vx) > 0.1 || Math.abs(p.vy) > 0.1)) {
+                        destW = Math.max(p.w, p.h);
+                        destH = Math.min(p.w, p.h);
+                    }
+
+                    this.ctx.drawImage(
+                        p.image,
+                        sx, sy, sw, sh,
+                        -destW * anchorX, -destH * anchorY, destW, destH
+                    );
+                    this.ctx.restore();
+                    drawn = true;
+                }
+            }
+
+            // Fallback Rendering
+            // If NOT drawn, check if we should show fallback or hide it (e.g. while loading)
+            if (!drawn) {
+                // If hideWhileLoading is TRUE and image exists (but failed/loading), SKIP drawing.
+                // If hideWhileLoading is FALSE (or undefined), DRAW fallback.
+                const shouldHide = p.image && p.hideWhileLoading;
+
+                if (!shouldHide) {
+                    if (p.shape === 'triangle') {
+                        // Triangle (World Coords)
+                        this.ctx.save();
+                        const j = () => (Math.random() - 0.5) * 4;
+
+                        this.ctx.fillStyle = p.color;
+                        this.ctx.beginPath();
+                        if (p.w > p.h) {
+                            if (p.vx > 0) { // Right
+                                this.ctx.moveTo(Math.floor(p.x) + j(), Math.floor(p.y) + j());
+                                this.ctx.lineTo(Math.floor(p.x + p.w) + j(), Math.floor(p.y + p.h / 2) + j());
+                                this.ctx.lineTo(Math.floor(p.x) + j(), Math.floor(p.y + p.h) + j());
+                            } else { // Left
+                                this.ctx.moveTo(Math.floor(p.x + p.w) + j(), Math.floor(p.y) + j());
+                                this.ctx.lineTo(Math.floor(p.x + p.w) + j(), Math.floor(p.y + p.h / 2) + j());
+                                this.ctx.lineTo(Math.floor(p.x + p.w) + j(), Math.floor(p.y + p.h) + j());
+                            }
+                        } else {
+                            if (p.vy > 0) { // Down
+                                this.ctx.moveTo(Math.floor(p.x) + j(), Math.floor(p.y) + j());
+                                this.ctx.lineTo(Math.floor(p.x + p.w / 2) + j(), Math.floor(p.y + p.h) + j());
+                                this.ctx.lineTo(Math.floor(p.x + p.w) + j(), Math.floor(p.y) + j());
+                            } else { // Up
+                                this.ctx.moveTo(Math.floor(p.x) + j(), Math.floor(p.y + p.h) + j());
+                                this.ctx.lineTo(Math.floor(p.x + p.w / 2) + j(), Math.floor(p.y) + j());
+                                this.ctx.lineTo(Math.floor(p.x + p.w) + j(), Math.floor(p.y + p.h) + j());
+                            }
+                        }
+                        this.ctx.fill();
+                        this.ctx.restore();
+
+                    } else if (p.shape === 'slash') {
+                        // Slash (Centered)
+                        const cx = p.x + p.w / 2;
+                        const cy = p.y + p.h / 2;
+                        const angle = Math.atan2(p.vy, p.vx);
+
+                        this.ctx.save();
+                        this.ctx.translate(cx, cy);
+                        this.ctx.rotate(angle);
+                        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                        this.ctx.beginPath();
+                        this.ctx.arc(0, 0, p.w / 2, -Math.PI / 4, Math.PI / 4);
+                        this.ctx.fill();
+                        this.ctx.restore();
+
+                    } else if (p.shape === 'orb') {
+                        // Orb (World Coords)
+                        const cx = p.x + p.w / 2;
+                        const cy = p.y + p.h / 2;
+                        const radius = p.w / 2;
+
+                        this.ctx.save();
+                        const grad = this.ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius);
+                        grad.addColorStop(0, 'white');
+                        grad.addColorStop(1, p.color || 'yellow');
+                        this.ctx.fillStyle = grad;
+                        this.ctx.beginPath();
+                        this.ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.restore();
+
+                    } else {
+                        // Default Rectangle (Centered for Rotation)
+                        this.ctx.save();
+                        this.ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+                        this.ctx.rotate((p.rotation || 0) * Math.PI / 180);
+                        if (p.alpha !== undefined) this.ctx.globalAlpha = p.alpha;
+                        this.ctx.fillStyle = p.color;
+                        this.ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                        this.ctx.restore();
                     }
                 }
-                this.ctx.fill();
-            } else if (p.shape === 'slash') {
-                this.ctx.beginPath();
-                // Draw a crescent shape centered at p.x + p.w/2, p.y + p.h/2
-                const cx = p.x + p.w / 2;
-                const cy = p.y + p.h / 2;
-                const angle = Math.atan2(p.vy, p.vx);
-
-                this.ctx.save();
-                this.ctx.translate(cx, cy);
-                this.ctx.rotate(angle);
-
-                // Draw crescent
-                // M 0 -h/2 (Top tip)
-                // Q w/2 0, 0 h/2 (Outer curve to bottom tip)
-                // Q -w/4 0, 0 -h/2 (Inner curve back to top)
-                // Note: since we rotated, we draw as if facing Right (width is thickness, height is length? Or vice versa?)
-                // In setup: W=Thickness, H=Length.
-                // So in local space (facing right): extend along Y axis? No, "Slash" implies vertical cut moving forward?
-                // Actually, usually a slash projectile creates a vertical crescent moving horiz.
-                // So H is length (vertical), W is thickness (horizontal).
-
-                const len = Math.max(p.w, p.h) / 2; // Half Length
-                const thick = Math.min(p.w, p.h);   // Thickness
-
-                this.ctx.beginPath();
-                this.ctx.moveTo(0, -len);
-                this.ctx.quadraticCurveTo(thick, 0, 0, len);
-                this.ctx.quadraticCurveTo(thick * 0.4, 0, 0, -len);
-                this.ctx.fill();
-
-                // REMOVED: shadowBlur (expensive)
-                // this.ctx.shadowColor = p.color;
-                // this.ctx.shadowBlur = 10;
-
-                this.ctx.restore();
-            } else if (p.shape === 'orb') {
-                const cx = p.x + p.w / 2;
-                const cy = p.y + p.h / 2;
-                const radius = p.w / 2;
-
-                const grad = this.ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius);
-                grad.addColorStop(0, 'white');
-                grad.addColorStop(1, p.color || 'yellow');
-
-                this.ctx.fillStyle = grad;
-                this.ctx.beginPath();
-                this.ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-                this.ctx.fill();
-            } else {
-                this.ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.w, p.h);
             }
             this.ctx.restore();
         });
@@ -582,48 +611,49 @@ class Game {
                     this.ctx.fillRect(a.x, a.y, a.w, a.h);
                 }
             } else if (a.type === 'ghost') {
-                if (a.image && a.spriteData) {
-                    // Draw Sprite Ghost
-                    const frameIndex = a.frameY * 4 + a.frameX;
-                    if (a.spriteData.frames && a.spriteData.frames[frameIndex]) {
-                        const frameData = a.spriteData.frames[frameIndex].frame;
+                this.ctx.save();
+                this.ctx.globalAlpha = a.life / a.maxLife; // Fade out
 
-                        // REMOVED: Expensive filter for white silhouette
-                        // this.ctx.filter = 'brightness(0) invert(1)';
-                        // Instead, just draw semi-transparent ghost as is
+                // Handle Rotation
+                const cx = a.x + a.w / 2;
+                const cy = a.y + a.h / 2;
+                this.ctx.translate(cx, cy);
+                if (a.rotation) {
+                    this.ctx.rotate(a.rotation);
+                }
 
-                        this.ctx.globalAlpha = a.life / a.maxLife; // Fade out
+                // Draw Image Centered at (0,0)
+                if (a.image) {
+                    let sx = 0, sy = 0, sw = a.image.width, sh = a.image.height;
 
-                        if (a.spriteData) {
-                            // ... existing logic ...
-                            // Copied from original for context preservation
+                    // Sprite Sheet Logic
+                    if (a.spriteData) {
+                        const frameIndex = (a.frameY || 0) * 4 + (a.frameX || 0);
+                        if (a.spriteData.frames && a.spriteData.frames[frameIndex]) {
                             const frameData = a.spriteData.frames[frameIndex].frame;
-                            this.ctx.drawImage(
-                                a.image,
-                                frameData.x, frameData.y, frameData.w, frameData.h,
-                                Math.floor(a.x), Math.floor(a.y), a.w, a.h
-                            );
-                        } else {
-                            // Simple Image Draw (for enemies that are just single images or handled simply)
-                            this.ctx.drawImage(
-                                a.image,
-                                Math.floor(a.x), Math.floor(a.y), a.w, a.h
-                            );
+                            sx = frameData.x;
+                            sy = frameData.y;
+                            sw = frameData.w;
+                            sh = frameData.h;
                         }
+                    } else if (a.frames > 1) {
+                        // Simple grid fallback for projectiles
+                        sw = a.image.width / a.frames;
+                        sh = a.image.height;
+                        sx = (a.frameX || 0) * sw;
                     }
-                } else if (a.isWhite && a.image) {
-                    // REMOVED: Expensive filter
-                    // this.ctx.filter = 'brightness(0) invert(1)';
-                    this.ctx.globalAlpha = a.life / a.maxLife;
+
                     this.ctx.drawImage(
                         a.image,
-                        Math.floor(a.x), Math.floor(a.y), a.w, a.h
+                        sx, sy, sw, sh,
+                        -a.w / 2, -a.h / 2, a.w, a.h
                     );
                 } else {
                     // Fallback Shape
-                    this.ctx.fillStyle = a.color;
-                    this.ctx.fillRect(a.x, a.y, a.w, a.h);
+                    this.ctx.fillStyle = a.color || 'white';
+                    this.ctx.fillRect(-a.w / 2, -a.h / 2, a.w, a.h);
                 }
+                this.ctx.restore();
             } else if (a.type === 'ring') {
                 const progress = 1 - (a.life / a.maxLife);
                 const currentRadius = a.radius + (a.maxRadius - a.radius) * progress;
@@ -663,6 +693,10 @@ class Game {
                     }
                     this.ctx.translate(a.x + a.w / 2, a.y + a.h / 2);
                     if (a.rotation) this.ctx.rotate(a.rotation);
+
+                    if (a.filter) {
+                        this.ctx.filter = a.filter;
+                    }
 
                     // Maintain Aspect Ratio logic
                     let destW = a.w;
