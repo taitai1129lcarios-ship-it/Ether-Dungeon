@@ -80,8 +80,48 @@ canvas {
     white-space: nowrap;
 }
 
+#aether-gauge-container {
+    width: 200px;
+    height: 8px;
+    /* Thinner than HP */
+    background-color: #222;
+    border: 1px solid #444;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.8);
+    margin-top: -2px;
+    /* Pull closer to HP */
+}
+
+#aether-gauge-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #0088ff, #00ffff);
+    transition: width 0.1s linear;
+    box-shadow: 0 0 5px #00ffff;
+}
+
 #level-display {
     color: #44ff44;
+}
+
+#currency-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 20px;
+    color: #ffd700;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px black;
+    margin-top: 5px;
+}
+
+.currency-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.5));
 }
 
 /* Skill Bar UI */
@@ -318,6 +358,37 @@ canvas {
     font-weight: bold;
     color: #fff;
 }
+
+.inventory-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    justify-content: center;
+}
+
+.tab-btn {
+    background-color: #333;
+    border: 1px solid #555;
+    color: #aaa;
+    padding: 5px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    background-color: #444;
+    color: #fff;
+}
+
+.tab-btn.active {
+    background-color: #ffd700;
+    color: #000;
+    border-color: #ffd700;
+    font-weight: bold;
+}
+
 
 #backpack-grid {
     display: grid;
@@ -560,4 +631,134 @@ canvas {
 .skill-card[data-type="ultimate"]:hover {
     border-color: #ff00ff;
     box-shadow: 0 0 25px rgba(255, 0, 255, 0.4);
+}
+
+/* Dialogue Overlay */
+#dialogue-overlay {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    height: 150px;
+    z-index: 50;
+    /* Higher than Skill Bar (z-index ~5) and Skill Selection Modal (z-index 20) */
+    pointer-events: none;
+    /* Let clicks pass through if needed, though usually dialogue blocks input */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#dialogue-box {
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    border: 3px solid white;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+    pointer-events: auto;
+    /* Catch clicks on the box itself */
+}
+
+#dialogue-text {
+    font-size: 24px;
+    color: white;
+    text-align: center;
+    margin-bottom: 20px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px black;
+}
+
+#dialogue-prompt {
+    font-size: 14px;
+    color: #ccc;
+    margin-top: auto;
+    /* Push to bottom */
+}
+
+/* Blessing Selection Modal (Mirroring Skill Selection) */
+#blessing-selection-modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+}
+
+#blessing-selection-cards {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 40px 10px 10px 10px;
+}
+
+.blessing-card {
+    background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+    border: 2px solid #9acd32;
+    /* YellowGreen */
+    border-radius: 12px;
+    width: 220px;
+    min-height: 280px;
+    /* Reduced height since icon is gone */
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.blessing-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    border-color: #bfff00;
+    /* Brighter YellowGreen/Chartreuse */
+    box-shadow: 0 10px 30px rgba(154, 205, 50, 0.4);
+    background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
+    z-index: 10;
+}
+
+
+.blessing-card-name {
+    font-size: 24px;
+    /* Larger font */
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 20px;
+    text-align: center;
+    text-shadow: 1px 1px 2px #000;
+}
+
+
+.blessing-card-desc {
+    font-size: 16px;
+    /* Slightly larger description */
+    color: #ddd;
+    text-align: left;
+    line-height: 1.6;
+    flex: 1;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    border-radius: 5px;
+    box-sizing: border-box;
+    white-space: pre-wrap;
+    /* Allow wrapping */
+    display: flex;
+    align-items: center;
+    /* Center text vertically if short */
+    justify-content: center;
 }

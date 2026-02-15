@@ -1,0 +1,1074 @@
+import { spawnProjectile, spawnLightningBurst, spawnLightningBolt, spawnThunderfallImpact, spawnThunderBurstImpact } from '../common.js';
+
+export const areaBehaviors = {
+    'area_blast': (user, game, params) => {
+        const center = { x: user.x + user.width / 2, y: user.y + user.height / 2 };
+
+        // Immobilize User
+        if (params.duration > 0) {
+            user.isCasting = true;
+            game.animations.push({
+                type: 'logic',
+                life: params.duration,
+                maxLife: params.duration,
+                update: function (dt) {
+                    this.life -= dt;
+                    if (this.life <= 0) {
+                        user.isCasting = false;
+                    }
+                }
+            });
+        }
+
+        // Visual Sprite Animation
+        if (params.spriteSheet && (!params.interval || params.interval <= 0)) {
+            // Spawn a visual-only projectile (no damage, no physics)
+            const visualParams = { ...params, visual: true, speed: 0, life: params.duration, damageColor: params.damageColor };
+            spawnProjectile(game, center.x, center.y, 0, 0, visualParams);
+        } else if (!params.spriteSheet) {
+            // Ring (Fallback if no sprite)
+            game.animations.push({
+                type: 'ring',
+                x: center.x, y: center.y,
+                radius: 10, maxRadius: params.range,
+                width: 8,
+                life: params.duration, maxLife: params.duration,
+                color: params.color
+            });
+
+            // Particles (Fallback if no sprite)
+            const count = params.particleCount || 16;
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                game.animations.push({
+                    type: 'particle',
+                    x: center.x, y: center.y,
+                    w: 6, h: 6,
+                    life: 0.5, maxLife: 0.5,
+                    color: params.particleColor || '#88ffff',
+                    vx: Math.cos(angle) * 350,
+                    vy: Math.sin(angle) * 350
+                });
+            }
+        }
+
+        // Damage Logic
+        if (params.interval && params.interval > 0) {
+            // Damage over Time (DoT) Field
+            let damageTimer = params.interval;
+
+            game.animations.push({
+                type: 'field', // Invisible logic object
+                life: params.duration,
+                update: (dt) => {
+                    damageTimer += dt;
+                    if (damageTimer >= params.interval) {
+                        damageTimer = 0;
+
+                        // Spawn Visual Per Tick
+                        // Spawn Visual Per Tick
+                        if (params.spriteSheet) {
+                            const tickLife = 0.25;
+                            const tickParams = {
+                                ...params,
+                                visual: true,
+                                speed: 0,
+                                noTrail: true, // Fix: Prevent orange trail particles
+                                life: tickLife,
+                            };
+                            spawnProjectile(game, center.x, center.y, 0, 0, tickParams);
+                        }
+
+                        // Additional Lightning Burst
+                        spawnThunderBurstImpact(game, center.x, center.y, {
+                            burstCount: 3,
+                            burstSize: params.range * 0.8, // Reduced from 1.8 to contain in image
+                            burstSpeed: 50
+                        });
+
+                        // Deal Damage
+                        game.enemies.forEach(enemy => {
+                            const ex = enemy.x + enemy.width / 2;
+                            const ey = enemy.y + enemy.height / 2;
+                            const dist = Math.sqrt((ex - center.x) ** 2 + (ey - center.y) ** 2);
+                            if (dist < params.range) {
+                                enemy.takeDamage(params.damage, params.damageColor, params.aetherCharge);
+                                // Shake on hit
+                                game.camera.shake(0.15, 3.5);
+
+                                spawnThunderBurstImpact(game, ex, ey, {
+                                    burstCount: 1,
+                                    burstSize: 30,
+                                    burstSpeed: 50
+                                });
+                            }
+                        });
+                    }
+                }
+            });
+        } else {
+            // Instant Damage
+            game.enemies.forEach(enemy => {
+                const ex = enemy.x + enemy.width / 2;
+                const ey = enemy.y + enemy.height / 2;
+                const dist = Math.sqrt((ex - center.x) ** 2 + (ey - center.y) ** 2);
+                if (dist < params.range) {
+                    enemy.takeDamage(params.damage, params.damageColor, params.aetherCharge);
+                    game.spawnParticles(ex, ey, 10, '#ff0000');
+                }
+            });
+        }
+    },
+
+    'ice_spike': function (user, game, params) {
+        // Base spawn center
+        const startX = user.x + user.width / 2;
+        const startY = user.y + user.height / 2;
+
+        // Direction based on Player Facing
+        let dx = 0;
+        let dy = 0;
+        // user.facing is 'left', 'right', 'up', 'down'
+        if (user.facing === 'left') dx = -1;
+        if (user.facing === 'right') dx = 1;
+        if (user.facing === 'up') dy = -1;
+        if (user.facing === 'down') dy = 1;
+
+        // Fallback if no facing (shouldn't happen)
+        if (dx === 0 && dy === 0) dy = 1;
+
+        const count = params.count || 30;
+        const spacing = params.spacing || 5;
+        const duration = params.duration || 1.0; // Life of each spike
+        const width = params.width || 10;
+        const maxH = params.height || 46;
+
+        // Lock movement during activation
+        user.isCasting = true;
+
+        const imageSrc = params.spriteSheet;
+        let image = null;
+        if (imageSrc) {
+            if (!game.images[imageSrc]) {
+                game.images[imageSrc] = new Image();
+                game.images[imageSrc].src = imageSrc;
+            }
+            image = game.images[imageSrc];
+        }
+
+        // Spawner state
+        let spawnedCount = 0;
+        let timer = 0;
+        const spawnInterval = 0.02; // Speed of wave
+
+        game.animations.push({
+            type: 'spawner',
+            life: count * spawnInterval + 1.0, // Ensure it lives long enough
+            update: function (dt) {
+                // Check if finished
+                if (spawnedCount >= count) {
+                    user.isCasting = false;
+                    this.life = 0;
+                    return;
+                }
+
+                timer += dt;
+                while (timer >= spawnInterval && spawnedCount < count) {
+                    timer -= spawnInterval;
+                    spawnedCount++;
+                    const i = spawnedCount;
+
+                    // Calc Base Position along line
+                    let targetX = startX + (dx * spacing * i);
+                    let targetY = startY + (dy * spacing * i);
+
+                    // Apply Perpendicular Offset
+                    const offsetP = (Math.random() * 10) - 5;
+                    if (dx !== 0) {
+                        targetY += offsetP;
+                    } else if (dy !== 0) {
+                        targetX += offsetP;
+                    }
+
+                    const baseY = targetY + maxH / 2;
+
+                    // Random Variation
+                    const scale = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
+                    const angleDeg = (Math.random() * 30) - 15; // -15 to +15 degrees
+                    const angleRad = angleDeg * (Math.PI / 180);
+
+                    const finalW = width * scale;
+                    const finalMaxH = maxH * scale;
+
+                    const proj = {
+                        id: i,
+                        active: true,
+                        type: 'projectile',
+                        x: targetX - finalW / 2,
+                        y: baseY, // Start at bottom
+                        w: finalW,
+                        h: 0, // Start Height 0
+
+                        vx: 0, vy: 0,
+
+                        // Rotation & Anchor
+                        spinning: true,
+                        rotation: angleRad,
+                        anchorX: 0.5,
+                        anchorY: 1.0,
+
+                        life: duration,
+                        maxLife: duration,
+
+                        // Sprite Properties
+                        frameX: 0,
+                        frames: params.frames || 1,
+
+                        // Custom
+                        maxH: finalMaxH,
+                        baseY: baseY,
+                        damage: params.damage,
+                        tickInterval: params.tickInterval || 0.5,
+                        hitTimers: new Map(),
+
+                        image: image,
+                        color: '#a5f2f3',
+                        damageColor: params.damageColor,
+                        aetherCharge: params.aetherCharge,
+                        alpha: 1.0,
+
+                        hideWhileLoading: false,
+                        hasSpawnedEffects: false,
+
+                        update: function (dt) {
+                            // Spawn Particles on first frame active
+                            if (!this.hasSpawnedEffects) {
+                                for (let k = 0; k < 3; k++) {
+                                    game.animations.push({
+                                        type: 'particle',
+                                        x: this.x + this.w / 2,
+                                        y: this.baseY,
+                                        w: 4, h: 4,
+                                        vx: (Math.random() - 0.5) * 100, // Spread X
+                                        vy: -(150 + Math.random() * 150), // Shoot Up
+                                        life: 0.4,
+                                        maxLife: 0.4,
+                                        color: '#a5f2f3',
+                                        update: function (pDt) {
+                                            this.vy += 600 * pDt; // Gravity
+                                        }
+                                    });
+                                }
+                                this.hasSpawnedEffects = true;
+                            }
+
+                            this.life -= dt;
+
+                            // Growth Animation (0.05s)
+                            const timeAlive = this.maxLife - this.life;
+                            const growTime = 0.05;
+
+                            if (timeAlive < growTime) {
+                                this.h = this.maxH * (timeAlive / growTime);
+                            } else {
+                                this.h = this.maxH;
+                            }
+
+                            this.y = this.baseY - this.h;
+
+                            // Fade out check
+                            if (this.life < 0.5) {
+                                this.alpha = this.life / 0.5;
+                            }
+
+                            // Hit Logic
+                            for (let [id, t] of this.hitTimers) {
+                                this.hitTimers.set(id, t + dt);
+                            }
+                        },
+
+                        onHitEnemy: function (enemy, gameInstance) {
+                            if (!enemy.id) enemy.id = Math.random().toString(36).substr(2, 9);
+                            let t = this.hitTimers.get(enemy.id);
+
+                            if (t === undefined || t >= this.tickInterval) {
+                                enemy.takeDamage(this.damage, this.damageColor, this.aetherCharge);
+                                gameInstance.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, 5, 'cyan');
+                                this.hitTimers.set(enemy.id, 0);
+                            }
+                        },
+                        pierce: 999
+                    };
+                    game.projectiles.push(proj);
+                }
+            }
+        });
+    },
+
+    'ice_garden': (user, game, params) => {
+        // Aether Rush Modifiers
+        if (user.isAetherRush) {
+            params.radius = (params.radius || 150) * 2;
+            params.tickInterval = (params.tickInterval || 0.5) / 2;
+            console.log("Aether Rush Ice Garden!");
+        }
+
+        const duration = params.duration || 5.0;
+        const radius = params.radius || 150;
+
+        // Spawn Area Logic Entity
+        game.animations.push({
+            type: 'logic', // Invisible logic entity (or custom draw)
+            x: user.x + user.width / 2,
+            y: user.y + user.height / 2,
+            radius: radius,
+            life: duration,
+            maxLife: duration,
+            tickTimer: 0,
+            tickInterval: params.tickInterval || 0.5, // Spike spawn interval
+            layer: 'bottom', // Render at back
+            visuals: [], // Store relative visual spike data
+
+            // Initialize Visuals
+            visualsInitialized: false,
+            initVisuals: function () {
+                if (this.visualsInitialized) return;
+                this.visualsInitialized = true;
+
+                // --- Connected Crystal Mesh Generation (High Density & Randomness) ---
+                this.mesh = { vertices: [], faces: [] };
+
+                // Helper to push vertex ring
+                const addVertexRing = (rMinRatio, rMaxRatio, count, offsetJitter = 0.5) => {
+                    const startIdx = this.mesh.vertices.length;
+                    for (let i = 0; i < count; i++) {
+                        // Base angle + random jitter
+                        const baseAngle = (i / count) * Math.PI * 2;
+                        const angleJitter = (Math.random() - 0.5) * (Math.PI * 2 / count) * offsetJitter;
+                        const angle = baseAngle + angleJitter;
+
+                        // Radius with variance
+                        const rBase = radius * ((rMinRatio + rMaxRatio) / 2);
+                        const rVar = radius * (rMaxRatio - rMinRatio) * 0.5;
+                        const r = rBase + (Math.random() - 0.5) * 2 * rVar;
+
+                        this.mesh.vertices.push({
+                            x: Math.cos(angle) * r,
+                            y: Math.sin(angle) * r
+                        });
+                    }
+                    return { start: startIdx, count: count };
+                };
+
+                // 1. Generate Vertices (Rings)
+                this.mesh.vertices.push({ x: 0, y: 0 }); // Index 0: Center
+
+                // High Density: 9 Rings (More concentric layers)
+                const rings = [];
+                const ringCount = 9;
+
+                // Base density curve:
+                // Inner rings need fewer vertices, outer rings need many more.
+                // 15 -> 22 -> 29 ...
+
+                for (let i = 0; i < ringCount; i++) {
+                    // Radius distribution (0.1 start to 1.0)
+                    const progress = i / ringCount;
+                    const nextProgress = (i + 1) / ringCount;
+
+                    const minR = 0.1 + progress * 0.9;
+                    const maxR = 0.1 + nextProgress * 0.9;
+
+                    // Vertex count: Start around 12, increase significantly
+                    const baseCount = 12 + Math.floor(i * 6); // 12, 18, 24, 30 ...
+                    const vCount = baseCount + Math.floor(Math.random() * 4);
+
+                    // Jitter: Less jitter on inner rings for smoother center? Or varying.
+                    rings.push(addVertexRing(minR, maxR, vCount, 0.7));
+                }
+
+                // 2. Generate Faces (Triangulation)
+                let tempFaces = []; // Collect all triangles first
+
+                // Helper: Connect Ring A to Ring B using "Zipper" algorithm to fill all gaps
+                const connectRings = (ringA, ringB, alphaBase) => {
+                    let ia = 0;
+                    let ib = 0;
+                    const countA = ringA.count;
+                    const countB = ringB.count;
+
+                    // Total triangles needed = countA + countB
+                    // We loop until we wrap around both rings
+                    let steps = countA + countB;
+
+                    while (steps > 0) {
+                        const idxA = ringA.start + (ia % countA);
+                        const nextIdxA = ringA.start + ((ia + 1) % countA);
+                        const idxB = ringB.start + (ib % countB);
+                        const nextIdxB = ringB.start + ((ib + 1) % countB);
+
+                        const vA = this.mesh.vertices[idxA];
+                        const vnA = this.mesh.vertices[nextIdxA];
+                        const vB = this.mesh.vertices[idxB];
+                        const vnB = this.mesh.vertices[nextIdxB];
+
+                        // Measure diagonal candidates
+                        // Option 1: Triangle (A[i], A[i+1], B[i]) -> Advance A
+                        // Diagonal length: dist(A[i+1], B[i])
+                        const d1 = Math.hypot(vnA.x - vB.x, vnA.y - vB.y);
+
+                        // Option 2: Triangle (A[i], B[i], B[i+1]) -> Advance B
+                        // Diagonal length: dist(A[i], B[i+1])
+                        const d2 = Math.hypot(vA.x - vnB.x, vA.y - vnB.y);
+
+                        const colorPalette = ['#F0F8FF', '#D6EAF8', '#AED6F1', '#85C1E9', '#5DADE2'];
+                        const col = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+
+                        if (d1 < d2) {
+                            // Advance A
+                            // Triangle: (A[i], A[i+1], B[i])
+                            tempFaces.push({
+                                indices: [idxA, nextIdxA, idxB],
+                                color: col,
+                                alpha: 0.3 + Math.random() * 0.4 // 0.3 - 0.7
+                            });
+                            ia++;
+                        } else {
+                            // Advance B
+                            // Triangle: (A[i], B[i], B[i+1]) (Note order for CCW/CW consistency? Let's just store)
+                            tempFaces.push({
+                                indices: [idxA, idxB, nextIdxB],
+                                color: col,
+                                alpha: 0.3 + Math.random() * 0.4 // 0.3 - 0.7
+                            });
+                            ib++;
+                        }
+                        steps--;
+                    }
+                };
+
+                // Connect Center -> Ring 0
+                const r0 = rings[0];
+                const colorPalette = ['#F0F8FF', '#D6EAF8', '#AED6F1', '#85C1E9', '#5DADE2'];
+                for (let i = 0; i < r0.count; i++) {
+                    const next = r0.start + (i + 1) % r0.count;
+                    const col = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+                    tempFaces.push({
+                        indices: [0, r0.start + i, next],
+                        color: col,
+                        alpha: 0.4 + Math.random() * 0.4
+                    });
+                }
+
+                // Connect Rings 0->1, 1->2 ...
+                for (let i = 0; i < ringCount - 1; i++) {
+                    // Decrease alpha slighty as we go out? or keep random.
+                    // Connect Ring i -> Ring i+1
+                    // reuse connectRings logic
+                    connectRings(rings[i], rings[i + 1], 0.25);
+                }
+
+                // --- MERGING LOGIC ---
+                // Helper check: two faces share an edge if they share 2 vertices
+                const canMerge = (f1, f2) => {
+                    let shared = 0;
+                    f1.indices.forEach(i1 => {
+                        if (f2.indices.includes(i1)) shared++;
+                    });
+                    return shared === 2;
+                };
+
+                const mergeFaces = (f1, f2) => {
+                    const allIdx = [...new Set([...f1.indices, ...f2.indices])];
+
+                    // Re-sort by angle around centroid to ensure proper polygon shape
+                    const cx = allIdx.reduce((s, i) => s + this.mesh.vertices[i].x, 0) / allIdx.length;
+                    const cy = allIdx.reduce((s, i) => s + this.mesh.vertices[i].y, 0) / allIdx.length;
+
+                    allIdx.sort((a, b) => {
+                        const va = this.mesh.vertices[a];
+                        const vb = this.mesh.vertices[b];
+                        return Math.atan2(va.y - cy, va.x - cx) - Math.atan2(vb.y - cy, vb.x - cx);
+                    });
+
+                    return {
+                        indices: allIdx,
+                        color: f1.color, // Inherit one
+                        alpha: (f1.alpha + f2.alpha) / 2
+                    };
+                };
+
+                // Processing loop
+                let workList = [...tempFaces];
+                this.mesh.faces = [];
+
+                while (workList.length > 0) {
+                    let current = workList.shift();
+
+                    // 40% chance to TRY merge
+                    if (Math.random() < 0.4 && workList.length > 0) {
+                        const neighborIdx = workList.findIndex(f => canMerge(current, f));
+                        if (neighborIdx !== -1) {
+                            const neighbor = workList.splice(neighborIdx, 1)[0];
+                            current = mergeFaces(current, neighbor);
+
+                            // 30% chance to merge again (Pentagon)
+                            if (Math.random() < 0.3 && workList.length > 0) {
+                                const neighbor2Idx = workList.findIndex(f => canMerge(current, f));
+                                if (neighbor2Idx !== -1) {
+                                    const neighbor2 = workList.splice(neighbor2Idx, 1)[0];
+                                    current = mergeFaces(current, neighbor2);
+                                }
+                            }
+                        }
+                    }
+                    this.mesh.faces.push(current);
+                }
+
+                // No rotation needed
+                this.meshRotation = 0;
+                // this.meshSpinSpeed = 0.05;
+
+                // (Old shard logic removed)
+
+                // --- Visual Spikes (Existing Logic) ---
+                const count = params.visualSpikeCount || 15;
+                const visualImgName = 'assets/ice_spike.png';
+
+                // Preload check (should be loaded by createSkill usually, but safe to check)
+                if (!window.imageCache) window.imageCache = {};
+                if (!window.imageCache[visualImgName]) {
+                    const img = new Image();
+                    img.src = visualImgName;
+                    window.imageCache[visualImgName] = img;
+                }
+                const vImg = window.imageCache[visualImgName];
+
+                for (let i = 0; i < count; i++) {
+                    // Distribute spikes within the crystal shape roughly
+                    const r = Math.sqrt(Math.random()) * (radius * 0.9);
+                    const theta = Math.random() * 2 * Math.PI;
+                    const rx = r * Math.cos(theta); // Relative to center
+                    const ry = r * Math.sin(theta);
+
+                    const scale = 0.4 + Math.random() * 0.4;
+                    // --- Strict Wall Check (Spikes) ---
+                    // Check center and edges of the base
+                    const spikeW = 10 * scale;
+                    if (game.map.isWall(this.x + rx, this.y + ry) || // Center
+                        game.map.isWall(this.x + rx - spikeW / 2, this.y + ry) || // Left
+                        game.map.isWall(this.x + rx + spikeW / 2, this.y + ry) // Right
+                    ) continue;
+
+                    this.visuals.push({
+                        rx: rx,
+                        ry: ry,
+                        dist: r, // Distance from center
+                        w: spikeW,
+                        h: 0,
+                        maxH: 46 * scale,
+                        life: this.maxLife,
+                        maxLife: this.maxLife,
+                        image: vImg,
+                        alpha: 1,
+                        scale: scale
+                    });
+                }
+
+                // --- Pre-calculate Face Centroids & Filter Walls (Strict) ---
+                // Helper to check if a point is wall
+                const isWall = (x, y) => game.map.isWall(this.x + x, this.y + y);
+
+                this.mesh.faces = this.mesh.faces.filter(face => {
+                    let sx = 0, sy = 0;
+                    let hitWall = false;
+
+                    // Check ALL vertices
+                    face.indices.forEach(idx => {
+                        const v = this.mesh.vertices[idx];
+                        sx += v.x;
+                        sy += v.y;
+                        if (isWall(v.x, v.y)) hitWall = true;
+                    });
+
+                    if (hitWall) return false;
+
+                    const cx = sx / face.indices.length;
+                    const cy = sy / face.indices.length;
+
+                    // Check Centroid too just in case
+                    if (isWall(cx, cy)) return false;
+
+                    face.cx = cx;
+                    face.cy = cy;
+                    face.dist = Math.hypot(cx, cy);
+                    return true;
+                });
+            },
+
+            update: function (dt) {
+                if (!this.visualsInitialized) this.initVisuals();
+
+                // Stationary: Do not update x/y to match user
+
+                this.life -= dt;
+                this.tickTimer += dt;
+
+                // Rotate Mesh (Disabled)
+                // if (this.mesh) {
+                //     this.meshRotation += this.meshSpinSpeed * dt;
+                // }
+
+                // Update Visuals (Spikes)
+                if (this.visuals) {
+                    const elapsedTime = this.maxLife - this.life;
+                    const waveSpeed = this.radius / 0.6; // Reach edge in 0.6s
+
+                    this.visuals.forEach(v => {
+                        // Calculate Delay based on distance
+                        const delay = v.dist / waveSpeed;
+                        const activeTime = elapsedTime - delay;
+
+                        v.life = this.life; // Sync life if needed, but we use activeTime
+
+                        if (activeTime < 0) {
+                            v.h = 0; // Not appeared yet
+                            v.alpha = 0;
+                            return;
+                        }
+
+                        // Growth Animation
+                        const growTime = 0.2;
+                        if (activeTime < growTime) {
+                            // Pop in: BackOut
+                            const t = activeTime / growTime;
+                            const s = 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2);
+                            v.h = v.maxH * s;
+                            v.alpha = 1;
+                        } else {
+                            v.h = v.maxH;
+                            v.alpha = 1;
+                        }
+
+                        // Fade out near end of life
+                        if (this.life < 0.5) {
+                            v.alpha = this.life / 0.5;
+                        }
+                    });
+                }
+
+                // 1. Apply SLOW to enemies in range
+                // 2. Spawn Ice Spikes on enemies periodically
+                const shouldSpawnSpike = this.tickTimer >= this.tickInterval;
+                if (shouldSpawnSpike) this.tickTimer = 0;
+
+                game.enemies.forEach(enemy => {
+                    const dx = (enemy.x + enemy.width / 2) - this.x;
+                    const dy = (enemy.y + enemy.height / 2) - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < this.radius) {
+                        // Apply Slow (short duration, constantly reapplied)
+                        if (enemy.statusManager) {
+                            // 70% reduction => 0.3 multiplier
+                            enemy.statusManager.applyStatus('slow', 0.2, 0.3);
+                        }
+
+                        // Spawn Spike
+                        if (shouldSpawnSpike) {
+                            // Use ice_spike behavior or spawnProjectile?
+                            // Let's spawn a visual+damage spike at enemy location
+                            // We can reuse spawnProjectile if we have an "ice_spike" preset, 
+                            // OR manually define it. 
+                            // Let's use a manual definition similar to ice_spike skill but instant/delayed-hit.
+                            // Actually, let's just use spawnProjectile with 'ice_spike_burst' style?
+                            // Simplified: Spawn a short-lived damage zone at enemy feet.
+
+                            // Image Loading
+                            const spriteSheet = 'assets/ice_spike.png';
+                            if (!window.imageCache) window.imageCache = {};
+                            if (!window.imageCache[spriteSheet]) {
+                                window.imageCache[spriteSheet] = new Image();
+                                window.imageCache[spriteSheet].src = spriteSheet;
+                            }
+                            const img = window.imageCache[spriteSheet];
+
+                            const spikeLife = 0.5;
+                            const maxH = 46;
+
+                            game.projectiles.push({
+                                active: true,
+                                x: enemy.x + enemy.width / 2 - 5, // Centerish (width 10)
+                                y: enemy.y + enemy.height, // At feet
+                                w: 10, h: 1, // Start height 1 (Visible)
+                                type: 'projectile',
+                                // layer: 'bottom', // Removed as per user request (normal Y-sort)
+                                vx: 0, vy: 0,
+                                life: spikeLife,
+                                maxLife: spikeLife,
+                                damage: params.damage,
+                                color: '#00ffff', // Cyan backup
+                                damageColor: params.damageColor, // Pass damageColor
+                                aetherCharge: params.aetherCharge, // Pass charge
+                                shape: 'triangle',
+                                onHitEnemy: (e) => { }, // Prevent destruction
+
+                                // Image Props
+                                image: img,
+                                frames: 1,
+                                frameX: 0,
+                                anchorY: 1.0, // Grow from bottom
+                                fixedOrientation: true, // Don't rotate with velocity
+                                noShake: true, // Disable camera shake for this skill
+
+                                // Logic
+                                maxH: maxH, // Target height
+                                baseY: enemy.y + enemy.height, // Base position (feet)
+
+                                update: function (dt) {
+                                    this.life -= dt;
+
+                                    // Growth Animation
+                                    const timeAlive = this.maxLife - this.life;
+                                    const growTime = 0.1;
+                                    if (timeAlive < growTime) {
+                                        this.h = this.maxH * (timeAlive / growTime);
+                                    } else {
+                                        this.h = this.maxH;
+                                    }
+                                    // Ensure we stay at the base Y (y is top-left usually, but with anchorY=1.0 in drawProjectile,
+                                    // we draw relative to y. If we change h, and anchorY is 1.0, 
+                                    // drawProjectile translates to y + h*1.0? 
+                                    // Let's check drawProjectile logic:
+                                    // this.ctx.translate(p.x + p.w * anchorX, p.y + p.h * anchorY);
+                                    // So if y is fixed at feet, and h grows, and we want it to grow UP:
+                                    // Y should clearly be the feet Y.
+                                    // If h grows, the anchor point (feet) stays at p.y + p.h (bottom).
+                                    // So p.y should simply be feet - p.h? 
+                                    // NO. If we pass anchorY=1.0 to drawProjectile, it translates to y+h.
+                                    // If we want that point to be "Feet", then Feet = y + h.
+                                    // => y = Feet - h.
+                                    // So as h changes, y must changes.
+
+                                    this.y = this.baseY - this.h;
+
+                                    // Damage Logic
+                                    // Hit once when spike is fully extended (approx 50% life or just after growth)
+                                    // Let's make it hit if enemy is still roughly over it.
+                                    if (!this.hit && this.life < this.maxLife - 0.1) { // 0.1s delay (growth time)
+                                        if (enemy && !enemy.markedForDeletion) {
+                                            // Check overlap: Projectile W=10, Enemy W=32
+                                            // Simple center distance check
+                                            const ex = enemy.x + enemy.width / 2;
+                                            const ey = enemy.y + enemy.height; // Feet
+                                            const sx = this.x + this.w / 2;
+                                            const sy = this.baseY; // Base of spike
+
+                                            const dx = Math.abs(ex - sx);
+                                            const dy = Math.abs(ey - sy);
+
+                                            // Allow some leeway. 
+                                            // Enemy width/2 + Spike width/2 = contact
+                                            // Plus some vertical forgiveness
+                                            if (dx < (enemy.width / 2 + 10) && dy < 20) {
+                                                enemy.takeDamage(this.damage, this.damageColor, this.aetherCharge);
+                                                game.spawnParticles(ex, ey - 10, 5, '#a5f2f3');
+                                                // Camera shake removed per user request
+                                            }
+                                        }
+                                        this.hit = true;
+                                    }
+
+                                    // Fade out
+                                    if (this.life < 0.2) {
+                                        // manual alpha handling if main.js doesn't
+                                        // main.js handles fade on maxLife check usually
+                                    }
+                                }
+                            });
+                        }
+                    }
+                });
+            },
+
+            draw: function (ctx) {
+                // console.log('IceGarden drawing. Visuals:', this.visuals ? this.visuals.length : 'null');
+                // Draw Ice Garden Area
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Expansion Animation (Removed global scale)
+                // const age = this.maxLife - this.life;
+                // ... logic removed ...
+
+                // Draw Polygon Layers (Crystal Effect)
+                // Draw Mesh
+                if (this.mesh) {
+                    const elapsedTime = this.maxLife - this.life;
+                    const waveSpeed = this.radius / 0.6; // Reach edge in 0.6s
+                    const meshAlpha = 0.5 * Math.min(1.0, elapsedTime / 0.2); // Fade in mesh
+
+                    // Draw Faces
+                    this.mesh.faces.forEach(face => {
+                        // Check if active based on distance
+                        if (face.dist > waveSpeed * elapsedTime) return;
+
+                        ctx.fillStyle = face.color;
+                        ctx.globalAlpha = face.alpha * meshAlpha;
+                        ctx.beginPath();
+                        face.indices.forEach((idx, i) => {
+                            const v = this.mesh.vertices[idx];
+                            if (i === 0) ctx.moveTo(v.x, v.y);
+                            else ctx.lineTo(v.x, v.y);
+                        });
+                        ctx.closePath();
+                        ctx.fill();
+                    });
+
+                    // Draw Edges (Optional, low opacity for structure)
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1; // Thinner
+                    ctx.globalAlpha = 0.2 * meshAlpha;
+                    this.mesh.faces.forEach(face => {
+                        if (face.dist > waveSpeed * elapsedTime) return;
+
+                        ctx.beginPath();
+                        face.indices.forEach((idx, i) => {
+                            const v = this.mesh.vertices[idx];
+                            if (i === 0) ctx.moveTo(v.x, v.y);
+                            else ctx.lineTo(v.x, v.y);
+                        });
+                        ctx.closePath();
+                        ctx.stroke();
+                    });
+                }
+
+                // Draw Visual Spikes
+                if (this.visuals) {
+                    this.visuals.forEach(v => {
+                        if (v.alpha <= 0) return;
+                        ctx.globalAlpha = v.alpha;
+                        ctx.save();
+                        // Anchor at bottom of spike
+                        ctx.translate(v.rx, v.ry); // Relative to center
+                        // Scale Y only for growth
+                        const drawH = v.h;
+                        if (drawH > 0) {
+                            if (v.image.complete) {
+                                // Draw from bottom up
+                                // If image is 15x66, we draw it scaled
+                                // v.w is logical width. v.maxH is logical height.
+                                // We want to draw h pixels high.
+                                // Source rect? or Scale? Let's scale.
+                                const scaleY = drawH / v.maxH;
+                                // ctx.scale(v.scale, v.scale * scaleY); // Uniform scale X, variable Y?
+                                // Actually, let's just drawImage with dest dims
+                                ctx.drawImage(v.image, -v.w / 2, -drawH, v.w, drawH);
+                            } else {
+                                ctx.fillStyle = '#00ffff';
+                                ctx.fillRect(-v.w / 2, -drawH, v.w, drawH);
+                            }
+                        }
+                        ctx.restore();
+                    });
+                }
+
+                ctx.restore();
+            }
+        });
+    },
+
+    'thunderfall_storm': (user, game, params) => {
+        // Direction based on Player Facing
+        const startX = user.x + user.width / 2;
+        const startY = user.y + user.height / 2;
+
+        let dx = 0;
+        let dy = 0;
+        // user.facing is 'left', 'right', 'up', 'down'
+        if (user.facing === 'left') dx = -1;
+        if (user.facing === 'right') dx = 1;
+        if (user.facing === 'up') dy = -1;
+        if (user.facing === 'down') dy = 1;
+
+        // Fallback if no facing
+        if (dx === 0 && dy === 0) dy = 1;
+
+        const count = params.count || 8; // Number of bolts
+        const spacing = params.spacing || 70; // Distance between bolts
+        const interval = params.interval || 0.08; // Speed of propagation (fast)
+
+        let spawnedCount = 0;
+        let timer = 0;
+
+        game.animations.push({
+            type: 'logic',
+            life: count * interval + 1.0,
+            lateralOffset: 0, // Initialize random walk state
+
+            update: function (dt) {
+                if (spawnedCount >= count) {
+                    this.life = 0;
+                    return;
+                }
+
+                timer += dt;
+                while (timer >= interval && spawnedCount < count) {
+                    timer -= interval;
+                    spawnedCount++;
+
+                    const i = spawnedCount; // 1-based index
+
+                    // Main Path (Forward)
+                    let targetX = startX + (dx * spacing * i);
+                    let targetY = startY + (dy * spacing * i);
+
+                    // 1. Bolt from Sky
+                    spawnLightningBolt(game, targetX, targetY, {
+                        height: 600,
+                        segments: 60, // Increased parts
+                        deviation: 40, // Slightly reduced deviation for finer zigzag
+                        thickness: 25, // Reduced size (thickness)
+                        color: '#ffff00'
+                    });
+
+                    // 2. Impact Effect (Realism)
+                    spawnThunderfallImpact(game, targetX, targetY);
+
+                    // 3. Screen Shake
+                    game.camera.shake(0.2, 8);
+
+                    // 4. Damage Area (Instant)
+                    const hitRadius = 50;
+                    game.enemies.forEach(e => {
+                        if (e.markedForDeletion) return;
+                        const ex = e.x + e.width / 2;
+                        const ey = e.y + e.height / 2;
+                        if (Math.hypot(ex - targetX, ey - targetY) < hitRadius) {
+                            e.takeDamage(params.damage, params.damageColor || '#ffff00', params.aetherCharge);
+                            game.spawnParticles(ex, ey, 5, '#ffff00');
+                        }
+                    });
+                }
+            }
+        });
+    },
+
+    'global_strike': (user, game, params) => {
+        // 1. Global Flash Effect
+        game.animations.push({
+            type: 'flash', // Handled by game loop or custom drawer
+            life: 0.2,
+            maxLife: 0.2,
+            color: 'rgba(255, 255, 255, 0.8)', // Bright white flash
+            update: function (dt) {
+                this.life -= dt;
+            },
+            draw: function (ctx) { // Custom draw for fullscreen flash
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.life / this.maxLife;
+                ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.globalAlpha = 1.0;
+            }
+        });
+
+        // 2. Heavy Screen Shake
+        game.camera.shake(0.5, 10);
+
+        // 3. Strike All Enemies
+        const targets = game.enemies.filter(e => !e.markedForDeletion);
+
+        if (targets.length === 0) {
+            // If no valid targets, strike random points for effect
+            const randomCount = user.isAetherRush ? 15 : 5;
+            for (let i = 0; i < randomCount; i++) {
+                const tx = user.x + (Math.random() - 0.5) * 600;
+                const ty = user.y + (Math.random() - 0.5) * 400;
+                spawnLightningBolt(game, tx, ty, {
+                    height: 800, segments: 40, deviation: 60, thickness: 40, color: '#ffff00'
+                });
+                spawnThunderfallImpact(game, tx, ty, 2.0); // 2x Scale
+            }
+            return;
+        }
+
+        // Determine Total Bolt Count
+        let totalBolts = params.count || 20;
+        if (user.isAetherRush) {
+            totalBolts = totalBolts * 3; // 5 * 3 = 15 bolts
+        }
+
+        // Queue strikes randomly
+        const strikeQueue = [];
+        let totalDelay = 0;
+        // Faster interval for high count
+        const interval = 0.05; // 5 bolts * 0.05 = 0.25s total duration
+
+        for (let i = 0; i < totalBolts; i++) {
+            // Pick rand enemy
+            const targetIndex = Math.floor(Math.random() * targets.length);
+            const target = targets[targetIndex];
+
+            // Offset
+            const offset = 40; // Random area around target
+
+            strikeQueue.push({
+                target: target,
+                offset: offset,
+                delay: totalDelay
+            });
+
+            totalDelay += interval + Math.random() * 0.01;
+        }
+
+        // Spawn logic entity to handle the queue
+        game.animations.push({
+            type: 'logic',
+            life: totalDelay + 0.5, // Ensure it lives long enough
+            timer: 0,
+            queue: strikeQueue,
+            update: function (dt) {
+                this.timer += dt;
+
+                // Process queue
+                // We iterate backwards to allow splicing or just check all (efficiency isn't huge concern for <50 items)
+                // Better: keep an index? Or just filter?
+                // Simple: check first item, if ready, fire and shift. Loop in case multiple frame skips.
+
+                while (this.queue.length > 0 && this.queue[0].delay <= this.timer) {
+                    const strike = this.queue.shift();
+                    const e = strike.target;
+
+                    if (!e.markedForDeletion) {
+                        const ex = e.x + e.width / 2 + (Math.random() - 0.5) * strike.offset;
+                        const ey = e.y + e.height / 2 + (Math.random() - 0.5) * strike.offset;
+
+                        // Damage
+                        e.takeDamage(params.damage || 50, params.damageColor || '#ffff00', params.aetherCharge);
+
+                        // Visuals: Massive Bolt
+                        spawnLightningBolt(game, ex, ey, {
+                            height: 800,
+                            segments: 40,
+                            deviation: 60,
+                            thickness: 40,
+                            color: '#ffff00',
+                            life: 0.08 // Faster fade (User requested)
+                        });
+
+                        // Visuals: Massive Impact
+                        spawnThunderfallImpact(game, ex, ey, 2.0);
+
+                        // Camera Shake PER BOLT
+                        game.camera.shake(0.2, 5);
+                    }
+                }
+
+                // Done?
+                if (this.queue.length === 0) {
+                    this.life = 0;
+                }
+            }
+        });
+    }
+};

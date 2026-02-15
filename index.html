@@ -34,29 +34,58 @@
                     <div id="health-bar-text"><span id="hp-value">100</span> / <span id="hp-max">100</span></div>
                 </div>
             </div>
+            <div id="aether-gauge-container">
+                <div id="aether-gauge-fill"></div>
+            </div>
             <div id="level-display">LV: <span id="level-value">1</span></div>
+            <div id="currency-display">
+                <img src="assets/aether_shard.png" alt="Currency" class="currency-icon">
+                <span id="currency-value">0</span>
+            </div>
         </div>
+
+        <!-- Settings Button -->
+        <div id="settings-btn" style="position: absolute; top: 10px; right: 10px; z-index: 1000; cursor: pointer;">
+            <img src="assets/icon_settings.png" alt="Settings"
+                style="width: 32px; height: 32px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px;">
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+            <div
+                style="background: #222; padding: 20px; border: 2px solid #555; border-radius: 10px; text-align: center; color: white; min-width: 300px;">
+                <h2 style="margin-top: 0;">設定</h2>
+                <button id="btn-training"
+                    style="display: block; width: 100%; padding: 10px; margin: 10px 0; background: #444; color: white; border: none; cursor: pointer;">訓練場へ移動</button>
+                <button id="btn-close-settings"
+                    style="display: block; width: 100%; padding: 10px; margin: 10px 0; background: #666; color: white; border: none; cursor: pointer;">閉じる</button>
+            </div>
+        </div>
+
 
         <!-- Skill Selection Modal -->
         <div id="skill-selection-modal" style="display: none;">
             <div class="skill-selection-container">
-                <h2>スキルを選択</h2>
+                <h2>Level Up! Choose a Skill</h2>
                 <div id="skill-selection-cards">
-                    <!-- Cards will be injected here -->
+                    <!-- Cards injected by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Blessing Selection Modal -->
+        <div id="blessing-selection-modal" style="display: none;">
+            <div class="skill-selection-container">
+                <h2>女神の祝福</h2>
+                <div id="blessing-selection-cards" style="display: flex; justify-content: center; gap: 20px;">
+                    <!-- Cards injected by JS -->
                 </div>
             </div>
         </div>
         <div id="skill-bar">
             <div class="skill-slot" id="skill-normal">
                 <div class="key-hint">Space</div>
-                <img class="skill-icon" style="display:none">
-                <div class="skill-fallback-text" style="display:none"></div>
-                <div class="cooldown-overlay"></div>
-                <div class="cooldown-text"></div>
-                <div class="stack-count"></div>
-            </div>
-            <div class="skill-slot" id="skill-primary1">
-                <div class="key-hint">E</div>
                 <img class="skill-icon" style="display:none">
                 <div class="skill-fallback-text" style="display:none"></div>
                 <div class="cooldown-overlay"></div>
@@ -71,8 +100,16 @@
                 <div class="cooldown-text"></div>
                 <div class="stack-count"></div>
             </div>
+            <div class="skill-slot" id="skill-primary1">
+                <div class="key-hint">E</div>
+                <img class="skill-icon" style="display:none">
+                <div class="skill-fallback-text" style="display:none"></div>
+                <div class="cooldown-overlay"></div>
+                <div class="cooldown-text"></div>
+                <div class="stack-count"></div>
+            </div>
             <div class="skill-slot" id="skill-secondary">
-                <div class="key-hint">Shift</div>
+                <div class="key-hint">C</div>
                 <img class="skill-icon" style="display:none">
                 <div class="skill-fallback-text" style="display:none"></div>
                 <div class="cooldown-overlay"></div>
@@ -113,7 +150,7 @@
                                 <div class="slot-content" id="equip-primary2">なし</div>
                             </div>
                             <div class="equip-slot" data-type="secondary">
-                                <div class="slot-label">サブ (Shift)</div>
+                                <div class="slot-label">サブ (C)</div>
                                 <img class="skill-icon" style="display:none">
                                 <div class="slot-content" id="equip-secondary">なし</div>
                             </div>
@@ -126,6 +163,13 @@
                     </div>
                     <div class="backpack-section">
                         <h3>所持スキル</h3>
+                        <div class="inventory-tabs">
+                            <button class="tab-btn active" data-filter="all">すべて</button>
+                            <button class="tab-btn" data-filter="normal">通常</button>
+                            <button class="tab-btn" data-filter="primary">メイン</button>
+                            <button class="tab-btn" data-filter="secondary">サブ</button>
+                            <button class="tab-btn" data-filter="ultimate">必殺技</button>
+                        </div>
                         <div id="backpack-grid">
                             <!-- Items will be injected here -->
                         </div>
@@ -143,6 +187,13 @@
                     <p>スキルをクリックして選択し、装備欄をクリックして装備します。</p>
                     <button id="close-inventory">閉じる (B)</button>
                 </div>
+            </div>
+        </div>
+        <!-- Dialogue Overlay -->
+        <div id="dialogue-overlay" style="display: none;">
+            <div id="dialogue-box">
+                <div id="dialogue-text"></div>
+                <div id="dialogue-prompt">[SPACE] で次へ</div>
             </div>
         </div>
     </div>

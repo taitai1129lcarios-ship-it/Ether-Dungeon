@@ -1,5 +1,5 @@
 import { Entity } from './utils.js';
-import { SkillType } from './skills.js';
+import { SkillType } from './skills/index.js';
 
 export class Player extends Entity {
     constructor(game, x, y) {
@@ -11,6 +11,12 @@ export class Player extends Entity {
         this.dashVx = 0;
         this.dashVy = 0;
 
+        this.dashCooldown = 1.0;
+        this.dashTimer = 0;
+        this.canDash = true;
+        this.dashDuration = 0.15;
+        this.dashSpeed = 800;
+
         this.inventory = [];
         this.equippedSkills = {
             [SkillType.NORMAL]: null,
@@ -19,6 +25,12 @@ export class Player extends Entity {
             [SkillType.SECONDARY]: null,
             [SkillType.ULTIMATE]: null
         };
+
+        // Charge State
+        this.chargingSkillSlot = null;
+        this.chargeTimer = 0;
+        this.maxChargeTime = 0;
+        this.isCharging = false;
 
         this.image = new Image();
         this.image.src = 'assets/player_sprites.png';
@@ -51,6 +63,17 @@ export class Player extends Entity {
 
         this.damageColor = '#ff3333'; // Player takes red damage text
 
+
+        // Currency
+        this.currency = 0;
+
+        // Aether Rush System
+        this.aetherGauge = 0;
+        this.maxAetherGauge = 100;
+        this.isAetherRush = false;
+        this.aetherRushDuration = 15.0;
+        this.aetherRushTimer = 0;
+
         // Load Sprite JSON
         this.spriteData = null;
         fetch('assets/player_sprites.json')
@@ -60,6 +83,11 @@ export class Player extends Entity {
                 console.log('Player sprite data loaded:', this.spriteData);
             })
             .catch(err => console.error('Failed to load sprite JSON:', err));
+    }
+
+    addCurrency(amount) {
+        this.currency += amount;
+        // console.log(`Currency: ${this.currency} (+${amount})`);
     }
 
     equipSkill(skill, slot) {
@@ -138,6 +166,73 @@ export class Player extends Entity {
             case 'up': this.frameY = 3; break;
         }
 
+        // Decrease Dash Cooldown
+        if (this.dashTimer > 0) {
+            this.dashTimer -= dt;
+        }
+
+        // Aether Rush Logic
+        if (this.isAetherRush) {
+            this.aetherRushTimer -= dt;
+            // Visual decay of gauge for effect
+            this.aetherGauge = (this.aetherRushTimer / this.aetherRushDuration) * this.maxAetherGauge;
+
+            if (this.aetherRushTimer <= 0) {
+                this.endAetherRush();
+            }
+
+            // Passive particles during rush
+            if (Math.random() < 0.3) {
+                this.game.spawnParticles(this.x + (Math.random() - 0.5) * 20, this.y + (Math.random() - 0.5) * 20, 1, '#00ffff');
+            }
+
+            // Ghost Afterimage Effect
+            this.ghostTimer = (this.ghostTimer || 0) + dt;
+            if (this.ghostTimer > 0.05) { // Every 0.05s
+                this.ghostTimer = 0;
+
+                // Calculate current frame data exactly like render()
+                if (this.spriteData && this.spriteData.frames) {
+                    const frameIndex = this.frameY * 4 + this.frameX;
+                    if (this.spriteData.frames[frameIndex]) {
+                        const frameData = this.spriteData.frames[frameIndex].frame;
+                        const ratio = frameData.w / frameData.h;
+                        const drawWidth = this.width * 1.05;
+                        const drawHeight = drawWidth / ratio;
+                        const drawX = this.x + (this.width - drawWidth) / 2;
+                        const drawY = this.y + this.height - drawHeight;
+
+                        this.game.animations.push({
+                            type: 'ghost',
+                            x: drawX, // Use calculated draw position
+                            y: drawY,
+                            width: drawWidth,
+                            height: drawHeight,
+                            image: this.image,
+                            sx: frameData.x,
+                            sy: frameData.y,
+                            sw: frameData.w,
+                            sh: frameData.h,
+                            life: 0.3,
+                            maxLife: 0.3,
+                            update: function (dt) { this.life -= dt; },
+                            draw: function (ctx) {
+                                ctx.save();
+                                ctx.globalAlpha = (this.life / this.maxLife) * 0.6;
+                                ctx.filter = 'brightness(100) grayscale(100%) drop-shadow(0 0 5px white)';
+                                ctx.drawImage(
+                                    this.image,
+                                    this.sx, this.sy, this.sw, this.sh,
+                                    Math.floor(this.x), Math.floor(this.y), this.width, this.height
+                                );
+                                ctx.restore();
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
         super.update(dt);
 
         // Update cooldowns for equipped skills
@@ -148,21 +243,99 @@ export class Player extends Entity {
         }
 
         // Input handling for skills
-        if (this.game.input.isDown('Space')) {
-            this.useSkill(SkillType.NORMAL);
+        // We need to map keys to slots to check for charge
+        const inputMap = [
+            { key: 'Space', slot: SkillType.NORMAL },
+            { key: 'KeyE', slot: 'primary1' },
+            { key: 'KeyQ', slot: 'primary2' },
+            { key: 'KeyC', slot: SkillType.SECONDARY },
+            { key: 'KeyX', slot: SkillType.ULTIMATE }
+        ];
+
+        let chargeInputDetected = false;
+
+        for (const map of inputMap) {
+            const skill = this.equippedSkills[map.slot];
+            if (skill) {
+                // If this is the currently charging skill
+                if (this.chargingSkillSlot === map.slot) {
+                    chargeInputDetected = true;
+                    if (this.game.input.isDown(map.key)) {
+                        // Continue Charging
+                        this.chargeTimer += dt;
+                        if (this.chargeTimer > this.maxChargeTime) {
+                            this.chargeTimer = this.maxChargeTime; // Cap it
+                            // Optional: Auto-release or visual cue?
+                        }
+                    } else {
+                        // Released! Fire!
+                        this.finishChargeAndFire();
+                    }
+                }
+                // Start Charging?
+                else if (this.game.input.isDown(map.key) && !this.isCharging && !this.isDashing && !this.isCasting) {
+                    // Check if skill is chargeable
+                    // We need to access the underlying data or params. 
+                    // The Skill object doesn't have params directly exposed easily unless we attached them.
+                    // But createSkill attached 'effect' which is a closure.
+                    // Wait, we didn't attach params to the Skill instance itself in createSkill, only closed over them.
+                    // IMPORTANT: We need to check if 'chargeable' is true. 
+                    // Since we can't easily see internal params, we should probably add a flag to the Skill instance in createSkill.
+                    // Let's assume we will add `skill.chargeable` and `skill.chargeTime` properties in `createSkill` or `skills_db`.
+
+                    // For now, let's assume valid property exists or we check DB?
+                    if (skill.chargeable) {
+                        this.startCharge(map.slot, skill);
+                        chargeInputDetected = true;
+                    } else if (this.game.input.isDown(map.key)) { // Use isDown for continuous fire (auto-fire on cooldown)
+                        this.useSkill(map.slot);
+                    }
+                }
+            }
         }
-        if (this.game.input.isDown('KeyE')) {
-            this.useSkill('primary1');
+
+        // If we were charging but the input is gone (e.g. key release missed due to frame drop or focus loss?)
+        // The above loop handles release for the specific key.
+        // But what if multiple keys? logic seems fine.
+
+        // Dash (Shift/RightClick) - Cancels Charge
+        if (this.game.input.isDown('ShiftLeft') || this.game.input.isDown('ShiftRight') || this.game.input.isPressed('ClickRight')) {
+            if (this.isCharging) {
+                this.cancelCharge();
+            }
+            this.performDash();
         }
-        if (this.game.input.isDown('KeyQ')) {
-            this.useSkill('primary2');
+    }
+
+    startCharge(slot, skill) {
+        this.isCharging = true;
+        this.chargingSkillSlot = slot;
+        this.chargeTimer = 0;
+        this.maxChargeTime = skill.chargeTime || 1.0;
+        this.isCasting = true; // Block movement
+        console.log(`Started charging ${skill.name}`);
+    }
+
+    cancelCharge() {
+        this.isCharging = false;
+        this.chargingSkillSlot = null;
+        this.chargeTimer = 0;
+        this.isCasting = false;
+        console.log("Charge Cancelled");
+    }
+
+    finishChargeAndFire() {
+        const slot = this.chargingSkillSlot;
+        const skill = this.equippedSkills[slot];
+        if (skill) {
+            const ratio = Math.min(1.0, this.chargeTimer / this.maxChargeTime);
+            console.log(`Firing ${skill.name} with ratio ${ratio}`);
+
+            // Pass the ratio to activate
+            skill.activate(this, this.game, { chargeRatio: ratio });
         }
-        if (this.game.input.isDown('ShiftLeft') || this.game.input.isDown('ShiftRight')) {
-            this.useSkill(SkillType.SECONDARY);
-        }
-        if (this.game.input.isDown('KeyX')) {
-            this.useSkill(SkillType.ULTIMATE);
-        }
+
+        this.cancelCharge();
     }
 
     useSkill(slot) {
@@ -245,5 +418,129 @@ export class Player extends Entity {
             if (Math.random() < 0.01) console.log('Player Draw Fallback - ImgComplete:', this.image.complete, 'HasSpriteData:', !!this.spriteData);
             super.draw(ctx);
         }
+
+        // Draw Charge Gauge
+        if (this.isCharging) {
+            const barW = 40;
+            const barH = 6;
+            const barX = this.x + (this.width - barW) / 2;
+            const barY = this.y - 15;
+
+            // BG
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(barX, barY, barW, barH);
+
+            // Fill
+            const ratio = Math.min(1.0, this.chargeTimer / this.maxChargeTime);
+            if (ratio >= 1.0) ctx.fillStyle = '#ffcc00'; // Full charge gold
+            else ctx.fillStyle = '#00ccff'; // Charging blue
+
+            ctx.fillRect(barX + 1, barY + 1, (barW - 2) * ratio, barH - 2);
+        }
+    }
+
+    performDash() {
+        if (this.dashTimer > 0 || this.isDashing || this.isCasting) return;
+
+        this.isDashing = true;
+        this.dashTimer = this.dashCooldown;
+        this.invulnerable = this.dashDuration + 0.1; // Slight invulnerability buffer
+
+        // Dash Direction
+        this.dashVx = 0;
+        this.dashVy = 0;
+        if (this.facing === 'left') this.dashVx = -this.dashSpeed;
+        if (this.facing === 'right') this.dashVx = this.dashSpeed;
+        if (this.facing === 'up') this.dashVy = -this.dashSpeed;
+        if (this.facing === 'down') this.dashVy = this.dashSpeed;
+
+        console.log("Dash!", this.dashVx, this.dashVy);
+
+        // Visual Effect (Ghost)
+        const ghostInterval = 0.03; // Spawn ghost every 0.03s
+        let timer = 0;
+
+        // Add a temporary spawner animation to the game to create trails
+        this.game.animations.push({
+            type: 'spawner',
+            life: this.dashDuration,
+            update: (dt) => {
+                timer += dt;
+                if (timer >= ghostInterval) {
+                    timer = 0;
+                    // Create Ghost
+                    // Calculate correct ghost visual dims
+                    let ghostX = this.x;
+                    let ghostY = this.y;
+                    let ghostW = this.width;
+                    let ghostH = this.height;
+
+                    if (this.spriteData) {
+                        const frameIndex = this.frameY * 4 + this.frameX;
+                        if (this.spriteData.frames && this.spriteData.frames[frameIndex]) {
+                            const frameData = this.spriteData.frames[frameIndex].frame;
+                            const ratio = frameData.w / frameData.h;
+                            ghostW = this.width * 1.05;
+                            ghostH = ghostW / ratio;
+                            ghostX = this.x + (this.width - ghostW) / 2;
+                            ghostY = this.y + this.height - ghostH;
+                        }
+                    }
+
+                    this.game.animations.push({
+                        type: 'ghost',
+                        x: ghostX, y: ghostY,
+                        w: ghostW, h: ghostH,
+                        life: 0.3, maxLife: 0.3,
+                        color: 'rgba(100, 200, 255, 0.4)',
+                        image: this.image,
+                        frameX: this.frameX,
+                        frameY: this.frameY,
+                        spriteData: this.spriteData
+                    });
+                }
+            }
+        });
+
+        // End Dash
+        setTimeout(() => {
+            this.isDashing = false;
+            this.dashVx = 0;
+            this.dashVy = 0;
+        }, this.dashDuration * 1000);
+    }
+
+    addAether(amount) {
+        if (this.isAetherRush) return; // Don't gain while active
+        this.aetherGauge += amount;
+        if (this.aetherGauge >= this.maxAetherGauge) {
+            this.aetherGauge = this.maxAetherGauge;
+            this.triggerAetherRush();
+        }
+    }
+
+    triggerAetherRush() {
+        if (this.isAetherRush) return;
+        this.isAetherRush = true;
+        this.aetherRushTimer = this.aetherRushDuration;
+        console.log("AETHER RUSH ACTIVATED!");
+
+        // Reset Ultimate Cooldown
+        if (this.equippedSkills[SkillType.ULTIMATE]) {
+            const ult = this.equippedSkills[SkillType.ULTIMATE];
+            ult.currentCooldown = 0;
+            ult.stacks = ult.maxStacks;
+            console.log("Ultimate Cooldown Reset!");
+        }
+
+        // Vfx (Simple flash or particle boost handled in update/draw)
+        this.game.spawnParticles(this.x, this.y, 20, '#00ffff'); // Cyan burst
+    }
+
+    endAetherRush() {
+        this.isAetherRush = false;
+        this.aetherGauge = 0;
+        this.aetherRushTimer = 0;
+        console.log("Aether Rush Ended");
     }
 }

@@ -1,5 +1,6 @@
 
 let selectedSkill = null;
+let activeTab = 'all';
 
 export function initInventory(game) {
     const invScreen = document.getElementById('inventory-screen');
@@ -131,6 +132,17 @@ export function initInventory(game) {
             debugToggle.checked = game.debugMode;
         });
     }
+
+    // Bind Tab Events (once)
+    const tabs = document.querySelectorAll('.tab-btn');
+    tabs.forEach(tab => {
+        // Remove old listeners? No easy way, but init is called once.
+        // Assuming initInventory is called only once per game load.
+        tab.addEventListener('click', () => {
+            activeTab = tab.dataset.filter;
+            renderInventory(game);
+        });
+    });
 }
 
 export function renderInventory(game) {
@@ -169,10 +181,22 @@ export function renderInventory(game) {
     const grid = document.getElementById('backpack-grid');
     grid.innerHTML = '';
 
+    // Update Tab UI
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.dataset.filter === activeTab) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
     // Update Detail Panel
     updateDetailPanel(selectedSkill);
 
     game.player.inventory.forEach(skill => {
+        // Filter by Tab
+        if (activeTab !== 'all' && skill.type !== activeTab) return;
+
         const item = document.createElement('div');
         item.className = 'inventory-item';
 

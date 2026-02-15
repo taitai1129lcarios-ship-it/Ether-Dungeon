@@ -60,9 +60,15 @@ export function drawUI(ctx, game, width, height) {
         return;
     }
 
+    // Update Currency
+    updateCurrency(game.player.currency);
+
+    // Update Aether Gauge
+    updateAetherGauge(game.player.aetherGauge, game.player.maxAetherGauge);
+
     ctx.fillStyle = 'white';
     ctx.font = '16px sans-serif';
-    ctx.fillText(`Enemies: ${game.enemies.length}`, 10, 20);
+    // ctx.fillText(`Enemies: ${game.enemies.length}`, 10, 20);
 
     if (!skillSlots) initSkillSlots();
 
@@ -196,6 +202,19 @@ function drawMiniMap(ctx, game, screenWidth, screenHeight) {
         }
     }
 
+    // Draw Statues
+    if (game.statues) {
+        ctx.fillStyle = '#ffffff'; // White for statues
+        game.statues.forEach(statue => {
+            if (!statue.used) {
+                const sX = (statue.x / map.tileSize) * scale;
+                const sY = (statue.y / map.tileSize) * scale;
+                // Draw a small rect or circle
+                ctx.fillRect(mmX + sX, mmY + sY, Math.max(2, scale), Math.max(2, scale));
+            }
+        });
+    }
+
     // Draw Player
     const pX = (player.x / map.tileSize) * scale;
     const pY = (player.y / map.tileSize) * scale;
@@ -269,5 +288,130 @@ export function hideSkillSelection() {
     if (skillModal) {
         skillModal.style.display = 'none';
         skillCardsContainer.innerHTML = ''; // Cleanup
+    }
+}
+
+// --- Blessing Selection UI ---
+const blessingModal = document.getElementById('blessing-selection-modal');
+const blessingCardsContainer = document.getElementById('blessing-selection-cards');
+
+export function showBlessingSelection(options, onSelectCallback) {
+    if (!blessingModal || !blessingCardsContainer) return;
+
+    // Clear previous
+    blessingCardsContainer.innerHTML = '';
+
+    options.forEach(opt => {
+        const card = document.createElement('div');
+        card.className = 'blessing-card';
+        card.dataset.id = opt.id;
+
+        // Name
+        const name = document.createElement('div');
+        name.className = 'blessing-card-name';
+        name.textContent = opt.name;
+        // Center the name explicitly since icon is gone
+        name.style.marginTop = '20px';
+        card.appendChild(name);
+
+        // Description
+        const desc = document.createElement('div');
+        desc.className = 'blessing-card-desc';
+        desc.textContent = opt.description || '';
+        card.appendChild(desc);
+
+        // Click Handler
+        card.addEventListener('click', () => {
+            hideBlessingSelection();
+            if (onSelectCallback) onSelectCallback(opt);
+        });
+
+        blessingCardsContainer.appendChild(card);
+    });
+
+    blessingModal.style.display = 'flex';
+}
+
+export function hideBlessingSelection() {
+    if (blessingModal) {
+        blessingModal.style.display = 'none';
+        blessingCardsContainer.innerHTML = '';
+    }
+}
+
+export function updateCurrency(amount) {
+    const el = document.getElementById('currency-value');
+    if (el) {
+        el.textContent = amount;
+    }
+}
+
+
+const dialogueOverlay = document.getElementById('dialogue-overlay');
+const dialogueTextEl = document.getElementById('dialogue-text');
+
+export function drawDialogue(game, text) {
+    if (!dialogueOverlay || !dialogueTextEl) return;
+
+    // Show Overlay
+    if (dialogueOverlay.style.display !== 'flex') {
+        dialogueOverlay.style.display = 'flex';
+    }
+
+    // Update Text
+    if (dialogueTextEl.textContent !== text) {
+        dialogueTextEl.textContent = text;
+    }
+}
+
+export function hideDialogue() {
+    if (dialogueOverlay && dialogueOverlay.style.display !== 'none') {
+        dialogueOverlay.style.display = 'none';
+    }
+}
+
+// --- Settings UI ---
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const btnCloseSettings = document.getElementById('btn-close-settings');
+const btnTraining = document.getElementById('btn-training');
+
+export function initSettingsUI(game) {
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'flex';
+            game.isPaused = true;
+        });
+    }
+
+    if (btnCloseSettings) {
+        btnCloseSettings.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+            game.isPaused = false;
+        });
+    }
+
+    if (btnTraining) {
+        btnTraining.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+            game.isPaused = false;
+            game.enterTrainingMode();
+        });
+    }
+}
+
+let aetherFill = null;
+function updateAetherGauge(current, max) {
+    if (!aetherFill) aetherFill = document.getElementById('aether-gauge-fill');
+    if (aetherFill) {
+        const pct = Math.min(100, Math.max(0, (current / max) * 100));
+        aetherFill.style.width = `${pct}%`;
+
+        // Optional: Change color if full? (CSS handles gradient)
+        if (pct >= 100) {
+            aetherFill.style.boxShadow = "0 0 15px #00ffff";
+        } else {
+            aetherFill.style.boxShadow = "0 0 5px #00aaff";
+        }
     }
 }
