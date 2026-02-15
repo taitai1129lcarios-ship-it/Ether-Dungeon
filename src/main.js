@@ -8,16 +8,8 @@ import { initInventory, renderInventory } from './inventory.js';
 import { skillsDB } from '../data/skills_db.js';
 
 const _debugLog = (msg) => {
-    console.log(msg);
-    let logParams = document.getElementById('debug-log');
-    if (!logParams) {
-        logParams = document.createElement('div');
-        logParams.id = 'debug-log';
-        logParams.style.cssText = "position:fixed;top:10px;left:10px;width:300px;height:200px;overflow:auto;background:rgba(0,0,0,0.8);color:#0f0;z-index:10000;font-family:monospace;font-size:14px;pointer-events:none;padding:5px;border:1px solid #444;";
-        document.body.appendChild(logParams);
-    }
-    logParams.innerHTML += `<div>${msg}</div>`;
-    logParams.scrollTop = logParams.scrollHeight;
+    // console.log(msg);
+    // User requested to remove on-screen log
 };
 
 _debugLog("Script loaded");

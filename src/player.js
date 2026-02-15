@@ -331,8 +331,23 @@ export class Player extends Entity {
             const ratio = Math.min(1.0, this.chargeTimer / this.maxChargeTime);
             console.log(`Firing ${skill.name} with ratio ${ratio}`);
 
+            // Prepare params
+            const extraParams = { chargeRatio: ratio };
+            let shouldResetAether = false;
+
+            // Check if Ultimate Reset condition met
+            if (skill.type === SkillType.ULTIMATE && this.isAetherRush) {
+                extraParams.aetherCharge = 0;
+                shouldResetAether = true;
+            }
+
             // Pass the ratio to activate
-            skill.activate(this, this.game, { chargeRatio: ratio });
+            skill.activate(this, this.game, extraParams);
+
+            // Reset Aether Rush AFTER activation so behaviors see the flag
+            if (shouldResetAether) {
+                this.endAetherRush();
+            }
         }
 
         this.cancelCharge();
@@ -341,7 +356,21 @@ export class Player extends Entity {
     useSkill(slot) {
         const skill = this.equippedSkills[slot];
         if (skill) {
-            skill.activate(this, this.game);
+            const extraParams = {};
+            let shouldResetAether = false;
+
+            // Check if Ultimate Reset condition met
+            if (skill.type === SkillType.ULTIMATE && this.isAetherRush) {
+                extraParams.aetherCharge = 0;
+                shouldResetAether = true;
+            }
+
+            skill.activate(this, this.game, extraParams);
+
+            // Reset Aether Rush AFTER activation so behaviors see the flag
+            if (shouldResetAether) {
+                this.endAetherRush();
+            }
         }
     }
 

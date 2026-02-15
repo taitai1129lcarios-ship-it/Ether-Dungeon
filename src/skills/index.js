@@ -39,6 +39,11 @@ export function createSkill(data) {
     skill.effect = function (user, game, extraParams = {}) {
         let finalParams = { ...data.params };
 
+        // Allow overriding Aether Charge (e.g. for Ultimate Reset)
+        if (extraParams.aetherCharge !== undefined) {
+            finalParams.aetherCharge = extraParams.aetherCharge;
+        }
+
         // Handle Charge Scaling
         if (extraParams.chargeRatio !== undefined && data.params.chargeable) {
             const ratio = extraParams.chargeRatio; // 0.0 to 1.0

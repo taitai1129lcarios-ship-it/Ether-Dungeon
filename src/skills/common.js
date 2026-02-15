@@ -43,7 +43,7 @@ export const spawnProjectile = (game, x, y, vx, vy, params) => {
         color: params.color,
         damage: params.damage,
         damageColor: params.damageColor, // Add damageColor from params
-        aetherCharge: params.aetherCharge || 1.0, // Default 1.0
+        aetherCharge: params.aetherCharge !== undefined ? params.aetherCharge : 1.0, // Default 1.0, allow 0
         statusEffect: params.statusEffect,
         statusChance: params.statusChance,
         shape: params.shape || 'circle',

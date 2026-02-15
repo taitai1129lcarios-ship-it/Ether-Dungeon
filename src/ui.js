@@ -129,6 +129,15 @@ export function drawUI(ctx, game, width, height) {
                     slot.stack.style.display = 'none';
                 }
 
+                // Aether Rush Visuals for Ultimate
+                if (key === 'ultimate') {
+                    if (game.player.isAetherRush) {
+                        slot.el.classList.add('aether-rush');
+                    } else {
+                        slot.el.classList.remove('aether-rush');
+                    }
+                }
+
             } else {
                 slot.icon.style.display = 'none';
                 slot.overlay.style.height = '0%';

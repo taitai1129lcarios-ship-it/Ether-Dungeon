@@ -207,6 +207,51 @@ canvas {
     display: none;
 }
 
+/* Aether Rush Ultimate Effect */
+.skill-slot.aether-rush {
+    border-color: #00ffff;
+    box-shadow: 0 0 15px #00ffff, inset 0 0 10px #00ffff;
+    animation: pulse-aether 1s infinite alternate;
+}
+
+.skill-slot.aether-rush::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(0, 255, 255, 0.3), transparent);
+    transform: rotate(45deg);
+    animation: shine 2s infinite linear;
+    pointer-events: none;
+    z-index: 1;
+}
+
+@keyframes pulse-aether {
+    0% {
+        box-shadow: 0 0 15px #00ffff, inset 0 0 10px #00ffff;
+        border-color: #00ffff;
+    }
+
+    100% {
+        box-shadow: 0 0 25px #0088ff, inset 0 0 20px #0088ff;
+        border-color: #0088ff;
+    }
+}
+
+@keyframes shine {
+    0% {
+        top: -150%;
+        left: -150%;
+    }
+
+    100% {
+        top: 150%;
+        left: 150%;
+    }
+}
+
 /* Inventory UI */
 #inventory-screen {
     position: absolute;

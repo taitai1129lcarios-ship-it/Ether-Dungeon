@@ -287,7 +287,7 @@ export const skillsDB = [
             frames: 1,
             damageColor: '#00ffff', // Cyan (Ice)
             pierce: 999,
-            aetherCharge: 10.0 // Calculated: 5.0 / (3 hits / 6.0s)
+            aetherCharge: 2.5 // Reduced to 25% (was 10.0)
         }
     },
     {
@@ -370,7 +370,7 @@ export const skillsDB = [
             spacing: 25, // User requested 25
             zigzagWidth: 30, // Zigzag offset
             damageColor: '#ffff00', // Yellow
-            aetherCharge: 13.0 // Calculated: 5.0 / (3 hits / 8.0s)
+            aetherCharge: 3.25 // Reduced to 25% (was 13.0)
         }
     },
     {
