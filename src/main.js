@@ -1333,10 +1333,26 @@ class Game {
                 this.slowMotionTimer = 0;
                 console.log("Slow Motion Ended");
             } else {
-                // Gradual Recovery: Interpolate from startScale to 1.0
-                const progress = 1.0 - (this.slowMotionTimer / this.slowMotionDuration);
-                // Linear Easing
-                this.timeScale = this.slowMotionStartScale + (1.0 - this.slowMotionStartScale) * progress;
+                // Multi-stage Recovery
+                const elapsed = this.slowMotionDuration - this.slowMotionTimer;
+
+                if (elapsed < 0.5) {
+                    // Phase 1: 0.0 -> 0.2 (Linear over first 0.5s)
+                    const p = elapsed / 0.5;
+                    this.timeScale = this.slowMotionStartScale + (0.2 - this.slowMotionStartScale) * p;
+                } else {
+                    // Phase 2: 0.2 -> 1.0 (Exponential over remaining time)
+                    // Assuming duration is > 0.5 (it is 1.0)
+                    const remainingDuration = this.slowMotionDuration - 0.5;
+                    if (remainingDuration > 0) {
+                        const p = (elapsed - 0.5) / remainingDuration;
+                        // Exponential curve from 0.2 to 1.0: y = 0.2 * (5^x)
+                        // x=0 -> y=0.2, x=1 -> y=1.0
+                        this.timeScale = 0.2 * Math.pow(5, p);
+                    } else {
+                        this.timeScale = 1.0;
+                    }
+                }
             }
             // Now apply scale to delta
             deltaTime = deltaTime * this.timeScale;
