@@ -350,7 +350,7 @@ export class Player extends Entity {
 
             // Reset Aether Rush AFTER activation so behaviors see the flag
             if (shouldResetAether) {
-                spawnAetherExplosion(this.game, this.x, this.y); // Trigger Visual
+                spawnAetherExplosion(this.game, this.x + this.width / 2, this.y + this.height / 2); // Trigger Visual
                 this.game.activateSlowMotion(1.0, 0.0);
                 this.endAetherRush();
             }
@@ -375,7 +375,7 @@ export class Player extends Entity {
 
             // Reset Aether Rush AFTER activation so behaviors see the flag
             if (shouldResetAether) {
-                spawnAetherExplosion(this.game, this.x, this.y); // Trigger Visual
+                spawnAetherExplosion(this.game, this.x + this.width / 2, this.y + this.height / 2); // Trigger Visual
                 this.game.activateSlowMotion(1.0, 0.0);
                 this.endAetherRush();
             }
