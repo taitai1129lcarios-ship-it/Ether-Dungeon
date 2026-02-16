@@ -1,5 +1,5 @@
-import { Entity } from './utils.js';
-import { SkillType } from './skills/index.js';
+import { Entity, spawnParticles } from './utils.js';
+import { SkillType, spawnAetherExplosion } from './skills/index.js';
 
 export class Player extends Entity {
     constructor(game, x, y) {
@@ -346,6 +346,7 @@ export class Player extends Entity {
 
             // Reset Aether Rush AFTER activation so behaviors see the flag
             if (shouldResetAether) {
+                spawnAetherExplosion(this.game, this.x, this.y); // Trigger Visual
                 this.endAetherRush();
             }
         }
@@ -369,6 +370,7 @@ export class Player extends Entity {
 
             // Reset Aether Rush AFTER activation so behaviors see the flag
             if (shouldResetAether) {
+                spawnAetherExplosion(this.game, this.x, this.y); // Trigger Visual
                 this.endAetherRush();
             }
         }

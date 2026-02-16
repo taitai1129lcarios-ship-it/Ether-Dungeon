@@ -14,7 +14,7 @@ const behaviors = {
 };
 
 export { SkillType, Skill } from './core.js';
-export { spawnProjectile, spawnLightningBurst } from './common.js';
+export { spawnProjectile, spawnLightningBurst, spawnAetherExplosion } from './common.js';
 
 export function createSkill(data) {
     const behaviorFn = behaviors[data.behavior];
