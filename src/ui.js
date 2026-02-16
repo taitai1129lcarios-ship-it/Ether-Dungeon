@@ -70,6 +70,15 @@ export function drawUI(ctx, game, width, height) {
     ctx.font = '16px sans-serif';
     // ctx.fillText(`Enemies: ${game.enemies.length}`, 10, 20);
 
+    // Draw Version
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText("v0.6.0 (Pro)", width - 10, height - 10);
+    ctx.restore();
+
+
     if (!skillSlots) initSkillSlots();
 
     // Update Skill DOM UI
