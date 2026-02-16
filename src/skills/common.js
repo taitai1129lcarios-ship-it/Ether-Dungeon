@@ -679,6 +679,6 @@ export function spawnAetherExplosion(game, x, y) {
 
     // 3. Screen Shake
     if (game.camera) {
-        game.camera.shake(0.8, 15); // Strong shake
+        game.camera.shake(0.3, 5); // Reduced from (0.8, 15) to be less jarring
     }
 }
