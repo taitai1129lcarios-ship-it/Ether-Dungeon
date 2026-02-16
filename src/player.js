@@ -183,7 +183,11 @@ export class Player extends Entity {
 
             // Passive particles during rush
             if (Math.random() < 0.3) {
-                this.game.spawnParticles(this.x + (Math.random() - 0.5) * 20, this.y + (Math.random() - 0.5) * 20, 1, '#00ffff');
+                this.game.spawnParticles(
+                    this.x + this.width / 2 + (Math.random() - 0.5) * 20,
+                    this.y + this.height / 2 + (Math.random() - 0.5) * 20,
+                    1, '#00ffff'
+                );
             }
 
             // Ghost Afterimage Effect
@@ -567,7 +571,7 @@ export class Player extends Entity {
         }
 
         // Vfx (Simple flash or particle boost handled in update/draw)
-        this.game.spawnParticles(this.x, this.y, 20, '#00ffff'); // Cyan burst
+        this.game.spawnParticles(this.x + this.width / 2, this.y + this.height / 2, 20, '#00ffff'); // Cyan burst
     }
 
     endAetherRush() {
