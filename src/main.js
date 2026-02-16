@@ -33,7 +33,14 @@ class Game {
         this.transitionType = 'none'; // 'fade-out', 'fade-in'
         this.transitionTimer = 0;
         this.transitionDuration = 0.5; // 0.5s fade
+        this.transitionTimer = 0;
+        this.transitionDuration = 0.5; // 0.5s fade
         this.transitionAlpha = 0;
+
+        // Time Scale (Slow Motion)
+        this.timeScale = 1.0;
+        this.targetTimeScale = 1.0;
+        this.slowMotionTimer = 0; // In Game Time (scaled)
 
         this.input = new InputHandler();
 
@@ -198,6 +205,13 @@ class Game {
 
     drawRewardUI() {
         // Handled by DOM now
+    }
+
+    activateSlowMotion(durationGameSeconds, scale) {
+        this.slowMotionTimer = durationGameSeconds;
+        this.targetTimeScale = scale;
+        this.timeScale = scale; // Instant slow
+        console.log(`Slow Motion Activated: ${scale}x for ${durationGameSeconds}s (Game Time)`);
     }
 
     enterTrainingMode() {
@@ -1304,6 +1318,27 @@ class Game {
         let deltaTime = (timestamp - this.lastTime) / 1000;
         this.lastTime = timestamp;
         if (deltaTime > 0.25) deltaTime = 0.25;
+
+        // Apply Time Scale
+        // If slow motion active, reduce deltaTime
+        if (this.slowMotionTimer > 0) {
+            // Update timer using SCALED delta time? 
+            // Request was "0.5 Game Seconds". So timer decreases by (realDt * timeScale).
+            // Yes.
+            const scaledDt = deltaTime * this.timeScale;
+            this.slowMotionTimer -= scaledDt;
+            if (this.slowMotionTimer <= 0) {
+                this.timeScale = 1.0;
+                this.targetTimeScale = 1.0;
+                this.slowMotionTimer = 0;
+                console.log("Slow Motion Ended");
+            }
+            deltaTime = scaledDt;
+        } else {
+            // Ensure reset if drifted
+            if (this.timeScale !== 1.0) this.timeScale = 1.0;
+        }
+
         this.accumulator += deltaTime;
         while (this.accumulator >= this.step) {
             this.update(this.step);
