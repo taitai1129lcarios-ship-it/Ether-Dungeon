@@ -1073,6 +1073,9 @@ export const projectileBehaviors = {
                 });
 
                 // 3. Chain Logic
+                // Check Chain Limit
+                if (this.chainCount <= 0) return;
+
                 // Continue as long as we find a valid target
                 let bestTarget = null;
                 let minHitCount = Infinity; // Priority 1: Lowest Hits
@@ -1131,6 +1134,7 @@ export const projectileBehaviors = {
                         nextProj.isChain = true;      // Correctly pass isChain to instance
                         nextProj.hitCounts = { ...this.hitCounts }; // Clone hit counts state
                         nextProj.aetherCharge = this.aetherCharge; // Pass charge to chain
+                        nextProj.chainCount = this.chainCount - 1; // Decrement chain count
 
                         // Recursively assign this same handler
                         nextProj.draw = this.draw;
