@@ -1,4 +1,4 @@
-import { Entity, spawnParticles } from './utils.js';
+import { Entity } from './utils.js';
 import { SkillType, spawnAetherExplosion } from './skills/index.js';
 
 export class Player extends Entity {
