@@ -387,5 +387,27 @@ export const skillsDB = [
             damageColor: '#ffff00', // Yellow
             aetherCharge: 5.0 // Ultimate (Normal Mode Gain)
         }
+    },
+    {
+        id: 'glacial_lotus',
+        name: 'グラシアル・ロータス', // Glacial Lotus
+        type: 'ultimate',
+        icon: 'assets/icon_ice.png', // Temporary
+        cooldown: 15.0,
+        behavior: 'glacial_lotus',
+        description: '周囲に巨大な氷の蓮を展開し、一斉に射出する奥義。',
+        params: {
+            damage: 30, // High burst damage
+            petalCount: 16, // Number of petals
+            bloomRadius: 60,
+            bloomDuration: 0.8, // Time until burst
+            burstSpeed: 900,
+            burstLife: 1.2,
+            width: 24,
+            height: 60,
+            spriteSheet: 'assets/ice_spike.png',
+            damageColor: '#00ffff', // Cyan (Ice)
+            aetherCharge: 5.0 // Ultimate (Normal Mode Gain)
+        }
     }
 ];

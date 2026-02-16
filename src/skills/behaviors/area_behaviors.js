@@ -1074,5 +1074,90 @@ export const areaBehaviors = {
                 }
             }
         });
+    },
+    'glacial_lotus': (user, game, params) => {
+        const petalCount = params.petalCount || 12;
+        const bloomRadius = params.bloomRadius || 60;
+        const bloomDuration = params.bloomDuration || 0.8;
+        const angleStep = (Math.PI * 2) / petalCount;
+
+        // SFX/Visual Feed for Activation
+        if (game.camera) game.camera.shake(0.3, 8);
+
+        // Create "Petals" (Animations that represent the blooming phase)
+        for (let i = 0; i < petalCount; i++) {
+            const angle = i * angleStep;
+            game.animations.push({
+                type: 'ice_petal',
+                angle: angle,
+                life: bloomDuration + 0.1, // Stay slightly longer than bloom
+                maxLife: bloomDuration + 0.1,
+                x: user.x + user.width / 2 + Math.cos(angle) * bloomRadius,
+                y: user.y + user.height / 2 + Math.sin(angle) * bloomRadius,
+                width: params.width || 20,
+                height: params.height || 50,
+                draw: function (ctx) {
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.angle + Math.PI / 2); // Point outward
+
+                    // Fade in
+                    const alpha = Math.min(1.0, (this.maxLife - this.life) * 5);
+                    ctx.globalAlpha = alpha;
+
+                    // Use spike sprite if available, otherwise fallback
+                    const img = new Image();
+                    img.src = params.spriteSheet || 'assets/ice_spike.png';
+                    if (img.complete) {
+                        ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height);
+                    } else {
+                        ctx.fillStyle = '#00ffff';
+                        ctx.beginPath();
+                        ctx.moveTo(0, -this.height / 2);
+                        ctx.lineTo(this.width / 2, this.height / 2);
+                        ctx.lineTo(-this.width / 2, this.height / 2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                },
+                update: function (dt) {
+                    this.life -= dt;
+                    // Follow user slightly during bloom
+                    this.x = user.x + user.width / 2 + Math.cos(this.angle) * bloomRadius;
+                    this.y = user.y + user.height / 2 + Math.sin(this.angle) * bloomRadius;
+                }
+            });
+        }
+
+        // Logic entity to handle the burst phase transition
+        game.animations.push({
+            type: 'logic',
+            life: bloomDuration,
+            update: function (dt) {
+                this.life -= dt;
+                if (this.life <= 0) {
+                    // BURST!
+                    if (game.camera) game.camera.shake(0.5, 12);
+
+                    for (let i = 0; i < petalCount; i++) {
+                        const angle = i * angleStep;
+                        const vx = Math.cos(angle) * (params.burstSpeed || 800);
+                        const vy = Math.sin(angle) * (params.burstSpeed || 800);
+
+                        spawnProjectile(game, user, {
+                            ...params,
+                            x: user.x + user.width / 2 + Math.cos(angle) * bloomRadius,
+                            y: user.y + user.height / 2 + Math.sin(angle) * bloomRadius,
+                            vx: vx,
+                            vy: vy,
+                            life: params.burstLife || 1.0,
+                            pierce: 999, // Pierces all enemies
+                            noShake: true // We already shook the camera
+                        });
+                    }
+                }
+            }
+        });
     }
 };
+
