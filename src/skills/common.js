@@ -590,7 +590,7 @@ export const spawnExplosion = (game, x, y, color = '#ff8800', sizeScale = 1.0, s
 // Helper for Lightning Bolt (Sky to Ground)
 export const spawnLightningBolt = (game, x, y, options = {}) => {
     const height = options.height || 600;
-    const segments = options.segments || 8; // Reduced default from 15 to 8
+    const segments = options.segments || 15;
     const deviation = options.deviation || 30;
     const color = options.color || '#a5f2f3';
 
@@ -660,7 +660,7 @@ export function spawnAetherExplosion(game, x, y) {
     });
 
     // 2. High Density Particle Burst (White)
-    const particleCount = 30; // Reduced from 60
+    const particleCount = 60;
     for (let i = 0; i < particleCount; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = (200 + Math.random() * 600) * 0.5; // Halved speed to reduce spread
