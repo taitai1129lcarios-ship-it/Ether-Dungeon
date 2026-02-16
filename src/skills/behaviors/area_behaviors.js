@@ -1144,16 +1144,19 @@ export const areaBehaviors = {
                         const vx = Math.cos(angle) * (params.burstSpeed || 800);
                         const vy = Math.sin(angle) * (params.burstSpeed || 800);
 
-                        spawnProjectile(game, user, {
-                            ...params,
-                            x: user.x + user.width / 2 + Math.cos(angle) * bloomRadius,
-                            y: user.y + user.height / 2 + Math.sin(angle) * bloomRadius,
-                            vx: vx,
-                            vy: vy,
-                            life: params.burstLife || 1.0,
-                            pierce: 999, // Pierces all enemies
-                            noShake: true // We already shook the camera
-                        });
+                        spawnProjectile(
+                            game,
+                            user.x + user.width / 2 + Math.cos(angle) * bloomRadius,
+                            user.y + user.height / 2 + Math.sin(angle) * bloomRadius,
+                            vx,
+                            vy,
+                            {
+                                ...params,
+                                life: params.burstLife || 1.0,
+                                pierce: 999, // Pierces all enemies
+                                noShake: true // We already shook the camera
+                            }
+                        );
                     }
                 }
             }
