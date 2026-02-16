@@ -40,7 +40,9 @@ class Game {
         // Time Scale (Slow Motion)
         this.timeScale = 1.0;
         this.targetTimeScale = 1.0;
-        this.slowMotionTimer = 0; // In Game Time (scaled)
+        this.slowMotionTimer = 0; // In Real Time
+        this.slowMotionDuration = 0;
+        this.slowMotionStartScale = 1.0;
 
         this.input = new InputHandler();
 
@@ -207,11 +209,13 @@ class Game {
         // Handled by DOM now
     }
 
-    activateSlowMotion(durationGameSeconds, scale) {
-        this.slowMotionTimer = durationGameSeconds;
-        this.targetTimeScale = scale;
+    activateSlowMotion(durationRealSeconds, scale) {
+        this.slowMotionTimer = durationRealSeconds;
+        this.slowMotionDuration = durationRealSeconds;
+        this.slowMotionStartScale = scale;
+        this.targetTimeScale = 1.0; // Goal is to return to normal
         this.timeScale = scale; // Instant slow
-        console.log(`Slow Motion Activated: ${scale}x for ${durationGameSeconds}s (Game Time)`);
+        console.log(`Slow Motion Activated: ${scale}x for ${durationRealSeconds}s (Real Time)`);
     }
 
     enterTrainingMode() {
@@ -1322,18 +1326,20 @@ class Game {
         // Apply Time Scale
         // If slow motion active, reduce deltaTime
         if (this.slowMotionTimer > 0) {
-            // Update timer using SCALED delta time? 
-            // Request was "0.5 Game Seconds". So timer decreases by (realDt * timeScale).
-            // Yes.
-            const scaledDt = deltaTime * this.timeScale;
-            this.slowMotionTimer -= scaledDt;
+            // Update timer using REAL delta time (deltaTime is unscaled here)
+            this.slowMotionTimer -= deltaTime;
             if (this.slowMotionTimer <= 0) {
                 this.timeScale = 1.0;
-                this.targetTimeScale = 1.0;
                 this.slowMotionTimer = 0;
                 console.log("Slow Motion Ended");
+            } else {
+                // Gradual Recovery: Interpolate from startScale to 1.0
+                const progress = 1.0 - (this.slowMotionTimer / this.slowMotionDuration);
+                // Linear Easing
+                this.timeScale = this.slowMotionStartScale + (1.0 - this.slowMotionStartScale) * progress;
             }
-            deltaTime = scaledDt;
+            // Now apply scale to delta
+            deltaTime = deltaTime * this.timeScale;
         } else {
             // Ensure reset if drifted
             if (this.timeScale !== 1.0) this.timeScale = 1.0;
