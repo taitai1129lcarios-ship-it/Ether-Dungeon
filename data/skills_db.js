@@ -167,7 +167,7 @@ export const skillsDB = [
             frameRate: 0.1, // Not used for single frame but good practice
             // scale: 1.0, // Force Fit to 160x160 instead
             randomRotation: true, // Rotate randomly each frame
-            aetherCharge: 3.0 // Calculated: 5.0 / (10 ticks / 6.0s)
+            aetherCharge: 1.5 // Halved from 3.0 per user request
         }
     },
     {
