@@ -643,7 +643,6 @@ export const spawnLightningBolt = (game, x, y, options = {}) => {
         currentX = nextX;
         currentY = nextY;
     }
-}
 };
 
 // --- Aether Explosion ---
