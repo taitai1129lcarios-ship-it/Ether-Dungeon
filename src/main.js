@@ -1336,16 +1336,16 @@ class Game {
                 // Multi-stage Recovery
                 const elapsed = this.slowMotionDuration - this.slowMotionTimer;
 
-                if (elapsed < 0.5) {
-                    // Phase 1: 0.0 -> 0.2 (Linear over first 0.5s)
-                    const p = elapsed / 0.5;
+                if (elapsed < 0.3) {
+                    // Phase 1: 0.0 -> 0.2 (Linear over first 0.3s)
+                    const p = elapsed / 0.3;
                     this.timeScale = this.slowMotionStartScale + (0.2 - this.slowMotionStartScale) * p;
                 } else {
                     // Phase 2: 0.2 -> 1.0 (Exponential over remaining time)
-                    // Assuming duration is > 0.5 (it is 1.0)
-                    const remainingDuration = this.slowMotionDuration - 0.5;
+                    // Assuming duration is > 0.3 (it is 1.0)
+                    const remainingDuration = this.slowMotionDuration - 0.3;
                     if (remainingDuration > 0) {
-                        const p = (elapsed - 0.5) / remainingDuration;
+                        const p = (elapsed - 0.3) / remainingDuration;
                         // Exponential curve from 0.2 to 1.0: y = 0.2 * (5^x)
                         // x=0 -> y=0.2, x=1 -> y=1.0
                         this.timeScale = 0.2 * Math.pow(5, p);
