@@ -651,9 +651,9 @@ export function spawnAetherExplosion(game, x, y) {
     game.animations.push({
         type: 'ring',
         x: x, y: y,
-        radius: 10,
-        maxRadius: 300,
-        width: 50, // Thick
+        radius: 5, // Halved
+        maxRadius: 150, // Halved from 300
+        width: 25, // Halved from 50
         life: 0.6,
         maxLife: 0.6,
         color: 'rgba(255, 255, 255, 0.7)', // White with transparency
@@ -663,11 +663,11 @@ export function spawnAetherExplosion(game, x, y) {
     const particleCount = 60;
     for (let i = 0; i < particleCount; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const speed = 200 + Math.random() * 600; // High speed
+        const speed = (200 + Math.random() * 600) * 0.5; // Halved speed to reduce spread
         game.animations.push({
             type: 'particle',
             x: x, y: y,
-            w: 6, h: 6,
+            w: 4, h: 4, // Slightly smaller (was 6)
             life: 0.5 + Math.random() * 0.5,
             maxLife: 1.0,
             color: Math.random() < 0.5 ? 'rgba(255, 255, 255, 0.8)' : 'rgba(200, 200, 255, 0.8)', // White with slight blue tint variance
