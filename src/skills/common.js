@@ -647,7 +647,7 @@ export const spawnLightningBolt = (game, x, y, options = {}) => {
 
 // --- Aether Explosion ---
 export function spawnAetherExplosion(game, x, y) {
-    // 1. Large Expanding Ring (Cyan/Transparent)
+    // 1. Large Expanding Ring (White/Transparent)
     game.animations.push({
         type: 'ring',
         x: x, y: y,
@@ -656,10 +656,10 @@ export function spawnAetherExplosion(game, x, y) {
         width: 50, // Thick
         life: 0.6,
         maxLife: 0.6,
-        color: 'rgba(0, 255, 255, 0.7)', // Cyan with transparency
+        color: 'rgba(255, 255, 255, 0.7)', // White with transparency
     });
 
-    // 2. High Density Particle Burst (Cyan/White)
+    // 2. High Density Particle Burst (White)
     const particleCount = 60;
     for (let i = 0; i < particleCount; i++) {
         const angle = Math.random() * Math.PI * 2;
@@ -670,7 +670,7 @@ export function spawnAetherExplosion(game, x, y) {
             w: 6, h: 6,
             life: 0.5 + Math.random() * 0.5,
             maxLife: 1.0,
-            color: Math.random() < 0.5 ? 'rgba(0, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.8)', // Cyan/White with transparency
+            color: Math.random() < 0.5 ? 'rgba(255, 255, 255, 0.8)' : 'rgba(200, 200, 255, 0.8)', // White with slight blue tint variance
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             drag: 0.95 // Slow down
