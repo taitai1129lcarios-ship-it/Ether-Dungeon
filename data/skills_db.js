@@ -230,7 +230,7 @@ export const skillsDB = [
             spriteData: 'assets/fireball_sheet.json',
             frames: 4,
             frameRate: 0.1,
-            aetherCharge: 0 // Ultimate
+            aetherCharge: 3.0 // Ultimate (Normal Mode Gain)
         }
     },
 
@@ -306,7 +306,7 @@ export const skillsDB = [
             tickInterval: 0.5, // Spill interval
             visualSpikeCount: 60, // Dense visual spikes
             damageColor: '#00ffff', // Cyan (Ice)
-            aetherCharge: 0 // Ultimate
+            aetherCharge: 0.5 // Ultimate (Normal Mode Gain)
         }
     },
     {
@@ -385,7 +385,7 @@ export const skillsDB = [
             damage: 20, // High single hit
             count: 5, // Total bolts to drop
             damageColor: '#ffff00', // Yellow
-            aetherCharge: 0 // Ultimate
+            aetherCharge: 5.0 // Ultimate (Normal Mode Gain)
         }
     }
 ];
