@@ -1362,10 +1362,27 @@ class Game {
         }
 
         this.accumulator += deltaTime;
-        while (this.accumulator >= this.step) {
-            this.update(this.step);
-            this.accumulator -= this.step;
+
+        // Dynamic Step Size for Smooth Slow Motion
+        // Use scaled step size to ensure updates run every frame even at low time scales
+        let activeStep = this.step;
+        if (this.timeScale < 1.0) {
+            // If timeScale is 0, we effectively pause simulation
+            // If timeScale is small, step size becomes small
+            activeStep = this.step * this.timeScale;
         }
+
+        // Prevent infinite loop if step size is too close to zero
+        if (activeStep > 0.0001) {
+            while (this.accumulator >= activeStep) {
+                this.update(activeStep);
+                this.accumulator -= activeStep;
+            }
+        } else {
+            // Time is stopped (0.0 scale)
+            // Accumulator just holds pending time until scale increases
+        }
+
         this.draw();
         this.input.update();
         requestAnimationFrame(this.loop);
