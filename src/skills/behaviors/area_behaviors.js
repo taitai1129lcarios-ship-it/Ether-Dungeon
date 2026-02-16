@@ -1051,9 +1051,9 @@ export const areaBehaviors = {
                         // Visuals: Massive Bolt
                         spawnLightningBolt(game, ex, ey, {
                             height: 800,
-                            segments: 40,
+                            segments: 10, // Reduced from 40 for performance
                             deviation: 60,
-                            thickness: 40,
+                            thickness: 20, // Reduced from 40
                             color: '#ffff00',
                             life: 0.08 // Faster fade (User requested)
                         });

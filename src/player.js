@@ -219,7 +219,7 @@ export class Player extends Entity {
                             draw: function (ctx) {
                                 ctx.save();
                                 ctx.globalAlpha = (this.life / this.maxLife) * 0.6;
-                                ctx.filter = 'brightness(100) grayscale(100%) drop-shadow(0 0 5px white)';
+                                ctx.filter = 'brightness(2) grayscale(100%)'; // Removed expensive drop-shadow
                                 ctx.drawImage(
                                     this.image,
                                     this.sx, this.sy, this.sw, this.sh,
