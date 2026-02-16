@@ -224,7 +224,7 @@ export const skillsDB = [
             trailColor: 'rgba(255, 100, 0, 0.8)',
             damageColor: '#ff8800', // Orange (Fire)
             onHitEffect: 'explosion', // Grand Explosion Effect
-            shakeIntensity: 0.5,
+            shakeIntensity: 0.3,
             noShake: true,
             spriteSheet: 'assets/fireball_sheet.png',
             spriteData: 'assets/fireball_sheet.json',

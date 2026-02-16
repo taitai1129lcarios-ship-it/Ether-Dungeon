@@ -221,7 +221,7 @@ export const spawnProjectile = (game, x, y, vx, vy, params) => {
                     // Use center of projectile for explosion origin
                     const ex = this.x + this.w / 2;
                     const ey = this.y + this.h / 2;
-                    spawnExplosion(gameInstance, ex, ey, params.color || '#ff8800');
+                    spawnExplosion(gameInstance, ex, ey, params.color || '#ff8800', 1.0, params.shakeIntensity !== undefined ? params.shakeIntensity : 1.0);
                 } else {
                     // Default particles
                     gameInstance.spawnParticles(this.x, this.y, 8, 'orange');
@@ -274,7 +274,7 @@ export const spawnProjectile = (game, x, y, vx, vy, params) => {
             proj.onHitWall = function (gameInstance) {
                 const ex = this.x + this.w / 2;
                 const ey = this.y + this.h / 2;
-                spawnExplosion(gameInstance, ex, ey, params.color || '#ff8800');
+                spawnExplosion(gameInstance, ex, ey, params.color || '#ff8800', 1.0, params.shakeIntensity !== undefined ? params.shakeIntensity : 1.0);
                 this.life = 0; // Destroy self
             };
         }

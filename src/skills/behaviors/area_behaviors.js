@@ -973,7 +973,9 @@ export const areaBehaviors = {
         });
 
         // 2. Heavy Screen Shake
-        game.camera.shake(0.5, 10);
+        const initialShakePower = user.isAetherRush ? 6 : 10;
+        const initialShakeDuration = user.isAetherRush ? 0.3 : 0.5;
+        game.camera.shake(initialShakeDuration, initialShakePower);
 
         // 3. Strike All Enemies
         const targets = game.enemies.filter(e => !e.markedForDeletion);
@@ -1060,7 +1062,9 @@ export const areaBehaviors = {
                         spawnThunderfallImpact(game, ex, ey, 2.0);
 
                         // Camera Shake PER BOLT
-                        game.camera.shake(0.2, 5);
+                        const boltShakePower = user.isAetherRush ? 2 : 5;
+                        const boltShakeDuration = user.isAetherRush ? 0.1 : 0.2;
+                        game.camera.shake(boltShakeDuration, boltShakePower);
                     }
                 }
 
