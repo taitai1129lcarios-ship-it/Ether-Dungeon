@@ -643,4 +643,56 @@ export const spawnLightningBolt = (game, x, y, options = {}) => {
         currentX = nextX;
         currentY = nextY;
     }
+}
 };
+
+// --- Aether Explosion ---
+export function spawnAetherExplosion(game, x, y) {
+    // 1. Large Expanding Ring (Cyan/Gold)
+    game.animations.push({
+        type: 'ring',
+        x: x, y: y,
+        radius: 10,
+        maxRadius: 300,
+        width: 50, // Thick
+        life: 0.6,
+        maxLife: 0.6,
+        color: '#00ffff', // Cyan core
+        color2: '#ffd700', // Gold edge (custom renderer support or just use 2 rings)
+    });
+
+    // Secondary Gold Ring
+    game.animations.push({
+        type: 'ring',
+        x: x, y: y,
+        radius: 10,
+        maxRadius: 280,
+        width: 30,
+        life: 0.5,
+        maxLife: 0.5,
+        color: '#ffd700'
+    });
+
+    // 2. High Density Particle Burst
+    const particleCount = 60;
+    for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 200 + Math.random() * 600; // High speed
+        game.animations.push({
+            type: 'particle',
+            x: x, y: y,
+            w: 6, h: 6,
+            life: 0.5 + Math.random() * 0.5,
+            maxLife: 1.0,
+            color: Math.random() < 0.5 ? '#00ffff' : '#ffd700', // Mix Cyan/Gold
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            drag: 0.95 // Slow down
+        });
+    }
+
+    // 3. Screen Shake
+    if (game.camera) {
+        game.camera.shake(0.8, 15); // Strong shake
+    }
+}
