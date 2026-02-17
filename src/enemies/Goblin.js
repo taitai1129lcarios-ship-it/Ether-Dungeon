@@ -130,16 +130,17 @@ export class Goblin extends Enemy {
         if (this.isTelegraphing) {
             ctx.save();
             ctx.beginPath();
-            ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 40, 0, Math.PI * 2);
+            const attackRadius = 150; // Unified attack range
+            ctx.arc(this.x + this.width / 2, this.y + this.height / 2, attackRadius, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 2;
             ctx.stroke();
 
             const progress = 1 - (this.telegraphTimer / this.telegraphDuration);
-            const radius = Math.max(0, 40 * progress);
+            const radius = Math.max(0, attackRadius * progress);
             ctx.beginPath();
             ctx.arc(this.x + this.width / 2, this.y + this.height / 2, radius, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
             ctx.fill();
             ctx.restore();
         }
@@ -154,12 +155,13 @@ export class Goblin extends Enemy {
     }
 
     executeAttack() {
+        const attackRadius = 150;
         const dist = Math.sqrt((this.game.player.x - this.x) ** 2 + (this.game.player.y - this.y) ** 2);
 
         // Show attack image for 0.3 seconds
         this.attackImageTimer = 0.3;
 
-        if (dist < 150) {
+        if (dist < attackRadius) {
             this.game.player.takeDamage(20);
             this.game.camera.shake(0.3, 10);
 
@@ -168,7 +170,7 @@ export class Goblin extends Enemy {
                 type: 'circle',
                 x: this.x + this.width / 2,
                 y: this.y + this.height / 2,
-                radius: 120,
+                radius: attackRadius,
                 color: 'rgba(255, 100, 0, 0.5)',
                 life: 0.3,
                 maxLife: 0.3
