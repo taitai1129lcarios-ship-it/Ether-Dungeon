@@ -1,7 +1,7 @@
 import { InputHandler, Camera, Entity } from './utils.js';
 import { Map } from './map.js';
 import { Player } from './player.js';
-import { Enemy, Slime, Bat, Goblin, Chest, Statue } from './entities.js';
+import { Enemy, Slime, Bat, Goblin, SkeletonArcher, Chest, Statue } from './entities.js';
 import { createSkill } from './skills/index.js';
 import { drawUI, showSkillSelection, hideSkillSelection, showBlessingSelection, hideBlessingSelection, drawDialogue, hideDialogue, initSettingsUI } from './ui.js';
 import { initInventory, renderInventory } from './inventory.js';
@@ -97,8 +97,8 @@ class Game {
                 }
             }
         });
-
         this.enemies = [];
+        this.enemyProjectiles = [];
         this.chests = [];
         this.statues = [];
 
@@ -411,12 +411,14 @@ class Game {
                     const ey = (currentRoom.y + 1 + Math.floor(Math.random() * spawnH)) * this.map.tileSize;
 
                     const rand = Math.random();
-                    if (rand < 0.5) {
+                    if (rand < 0.4) {
                         this.enemies.push(new Slime(this, ex, ey));
-                    } else if (rand < 0.8) {
+                    } else if (rand < 0.6) {
                         this.enemies.push(new Goblin(this, ex, ey));
-                    } else {
+                    } else if (rand < 0.8) {
                         this.enemies.push(new Bat(this, ex, ey));
+                    } else {
+                        this.enemies.push(new SkeletonArcher(this, ex, ey));
                     }
                 }
 
@@ -425,6 +427,10 @@ class Game {
 
                 // Optional: Text notification?
             }
+
+            // --- Update Enemy Projectiles ---
+            this.enemyProjectiles.forEach(p => p.update(dt, this));
+            this.enemyProjectiles = this.enemyProjectiles.filter(p => p.life > 0);
 
             // Monitor Encounter
             if (currentRoom.active) {
@@ -1045,6 +1051,15 @@ class Game {
             renderList.push({
                 z: p.y + (p.h || 10),
                 draw: () => this.drawProjectile(p)
+            });
+        });
+
+        // 5. Enemy Projectiles
+        this.enemyProjectiles.forEach(p => {
+            if (!this.camera.isVisible(p.x, p.y, 10, 10)) return;
+            renderList.push({
+                z: p.y,
+                draw: () => p.draw(this.ctx)
             });
         });
 

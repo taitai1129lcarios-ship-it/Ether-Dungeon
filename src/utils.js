@@ -50,6 +50,20 @@ export const getCachedImage = (src) => {
     return img;
 };
 
+export const getCachedJson = async (src) => {
+    if (!window.jsonCache) window.jsonCache = {};
+    if (window.jsonCache[src]) return window.jsonCache[src];
+    try {
+        const response = await fetch(src);
+        const data = await response.json();
+        window.jsonCache[src] = data;
+        return data;
+    } catch (e) {
+        console.error("Failed to load JSON:", src, e);
+        return null;
+    }
+};
+
 export class Camera {
     constructor(width, height, mapWidth, mapHeight) {
         this.width = width;
