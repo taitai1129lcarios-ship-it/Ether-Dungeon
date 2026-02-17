@@ -25,18 +25,11 @@ export class Goblin extends Enemy {
                 this.frameKeys = Object.keys(data.frames);
             }
         });
-
-        this.stunTimer = 0;
     }
 
     update(dt) {
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
         if (this.attackImageTimer > 0) this.attackImageTimer -= dt;
-        if (this.stunTimer > 0) {
-            this.stunTimer -= dt;
-            this.vx = 0;
-            this.vy = 0;
-        }
 
         // Advance animation if moving
         if (!this.isTelegraphing && (Math.abs(this.vx) > 0.1 || Math.abs(this.vy) > 0.1)) {
@@ -73,55 +66,33 @@ export class Goblin extends Enemy {
 
         this.image = currentImg;
 
-        if (frameRect && currentImg.complete) {
-            ctx.save();
-            if (this.flashTimer > 0) {
-                ctx.filter = 'brightness(0) invert(1)';
-            }
+        if (!currentImg.complete) return;
 
-            // Flip horizontally based on player position
-            const faceLeft = this.game.player.x < this.x;
+        const faceLeft = this.game.player.x < this.x;
+        const drawSize = 128; // Unified size for consistent look
 
-            // Draw matching height alignment with BaseEnemy's center-bottom logic
-            ctx.translate(this.x + this.width / 2, this.y + this.height);
+        ctx.save();
+        if (this.flashTimer > 0) ctx.filter = 'brightness(0) invert(1)';
 
-            if (faceLeft) {
-                ctx.scale(-1, 1);
-            }
+        // Center bottom alignment
+        ctx.translate(this.x + this.width / 2, this.y + this.height);
+        if (faceLeft) ctx.scale(-1, 1);
+
+        if (frameRect) {
+            // Sprite sheet frame
             ctx.drawImage(
                 currentImg,
                 frameRect.x, frameRect.y, frameRect.w, frameRect.h,
-                -this.width / 2, -this.height, this.width, this.height
+                -drawSize / 2, -drawSize, drawSize, drawSize
             );
-            ctx.restore();
-
-            // Draw extra UI like telegraph circles or HP bars
-            this.drawUI(ctx);
         } else {
-            // Fallback to base drawing for single images
-            ctx.save();
-            const faceLeft = this.game.player.x < this.x;
-
-            // Increase size for attack/telegraph
-            let drawWidth = this.width;
-            let drawHeight = this.height;
-            if (this.isTelegraphing || this.attackImageTimer > 0) {
-                drawWidth = 128;
-                drawHeight = 128;
-            }
-
-            // Center bottom alignment
-            ctx.translate(this.x + this.width / 2, this.y + this.height);
-            if (faceLeft) ctx.scale(-1, 1);
-
-            if (this.flashTimer > 0) ctx.filter = 'brightness(0) invert(1)';
-
-            ctx.drawImage(this.image, -drawWidth / 2, -drawHeight, drawWidth, drawHeight);
-            ctx.restore();
-
-            // Draw extra UI
-            this.drawUI(ctx);
+            // Single image
+            ctx.drawImage(currentImg, -drawSize / 2, -drawSize, drawSize, drawSize);
         }
+        ctx.restore();
+
+        // Draw extra UI like telegraph circles or HP bars
+        this.drawUI(ctx);
     }
 
     // Helper to draw UI elements since we are overriding draw

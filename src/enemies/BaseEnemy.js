@@ -32,12 +32,19 @@ export class Enemy extends Entity {
         this.telegraphTimer = 0;
         this.isTelegraphing = false;
         this.telegraphDuration = 1.0;
+
+        // Stun System
+        this.stunTimer = 0;
     }
 
     update(dt) {
         // Decrease flash timer
         if (this.flashTimer > 0) {
             this.flashTimer -= dt;
+            this.vx = 0;
+            this.vy = 0;
+        } else if (this.stunTimer > 0) {
+            this.stunTimer -= dt;
             this.vx = 0;
             this.vy = 0;
         } else if (this.isTelegraphing) {
