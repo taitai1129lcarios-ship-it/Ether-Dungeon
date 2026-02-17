@@ -105,12 +105,9 @@ export class Goblin extends Enemy {
             // Adjust size based on action
             let drawWidth = this.width;
             let drawHeight = this.height;
-            if (this.isTelegraphing) {
-                drawWidth = 160; // Increased size for raising club
-                drawHeight = 160;
-            } else if (this.attackImageTimer > 0) {
-                drawWidth = 128; // Slamming attack size
-                drawHeight = 128;
+            if (this.isTelegraphing || this.attackImageTimer > 0) {
+                drawWidth = 96; // 1.5x base size for visibility without being too huge
+                drawHeight = 96;
             }
 
             // Center bottom alignment
