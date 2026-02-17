@@ -25,11 +25,18 @@ export class Goblin extends Enemy {
                 this.frameKeys = Object.keys(data.frames);
             }
         });
+
+        this.stunTimer = 0;
     }
 
     update(dt) {
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
         if (this.attackImageTimer > 0) this.attackImageTimer -= dt;
+        if (this.stunTimer > 0) {
+            this.stunTimer -= dt;
+            this.vx = 0;
+            this.vy = 0;
+        }
 
         // Advance animation if moving
         if (!this.isTelegraphing && (Math.abs(this.vx) > 0.1 || Math.abs(this.vy) > 0.1)) {
@@ -94,13 +101,26 @@ export class Goblin extends Enemy {
             // Fallback to base drawing for single images
             ctx.save();
             const faceLeft = this.game.player.x < this.x;
-            if (faceLeft) {
-                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
-                ctx.scale(-1, 1);
-                ctx.translate(-(this.x + this.width / 2), -(this.y + this.height / 2));
+
+            // Increase size for attack/telegraph
+            let drawWidth = this.width;
+            let drawHeight = this.height;
+            if (this.isTelegraphing || this.attackImageTimer > 0) {
+                drawWidth = 128;
+                drawHeight = 128;
             }
-            super.draw(ctx);
+
+            // Center bottom alignment
+            ctx.translate(this.x + this.width / 2, this.y + this.height);
+            if (faceLeft) ctx.scale(-1, 1);
+
+            if (this.flashTimer > 0) ctx.filter = 'brightness(0) invert(1)';
+
+            ctx.drawImage(this.image, -drawWidth / 2, -drawHeight, drawWidth, drawHeight);
             ctx.restore();
+
+            // Draw extra UI
+            this.drawUI(ctx);
         }
     }
 
@@ -155,5 +175,6 @@ export class Goblin extends Enemy {
             });
         }
         this.attackCooldown = 3.0;
+        this.stunTimer = 2.0; // Stun for 2 seconds after attack
     }
 }
