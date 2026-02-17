@@ -232,7 +232,7 @@ export const projectileBehaviors = {
         game.camera.shake(0.4, 8);
 
         // STAGGERED EXECUTION
-        const strikeCount = user.isAetherRush ? 30 : 15;
+        const strikeCount = user.isAetherRush ? 20 : 7;
         const radius = 250;
         const delayPerStrike = 0.03;
 
