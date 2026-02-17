@@ -256,20 +256,12 @@ export const projectileBehaviors = {
 
                         const baseRotation = Math.random() * Math.PI * 2;
 
-                        // Slash 1
+                        // Single Slash
                         spawnProjectile(game, spawnX, spawnY, 0, 0, {
                             ...params,
                             rotation: baseRotation + Math.PI / 4,
                             fixedOrientation: true,
                             noShake: true
-                        });
-                        // Slash 2 (Internal delay)
-                        spawnProjectile(game, spawnX, spawnY, 0, 0, {
-                            ...params,
-                            rotation: baseRotation - Math.PI / 4,
-                            fixedOrientation: true,
-                            noShake: true,
-                            startDelay: 0.05
                         });
 
                         // Extra particle burst

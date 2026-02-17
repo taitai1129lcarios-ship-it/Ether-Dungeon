@@ -578,7 +578,12 @@ class Game {
                 if (p.x < e.x + e.width && p.x + p.w > e.x &&
                     p.y < e.y + e.height && p.y + p.h > e.y) {
 
-                    // Screen Shake
+                    // Prevent multi-hits per enemy
+                    p.hitPool = p.hitPool || new Set();
+                    if (p.hitPool.has(e)) return;
+                    p.hitPool.add(e);
+
+                    // Screen Shake - Only on successful hit
                     if (!p.noShake) {
                         this.camera.shake(0.15, 3.5);
                     }
@@ -586,11 +591,6 @@ class Game {
                     if (p.onHitEnemy) {
                         p.onHitEnemy(e, this, dt);
                     } else {
-                        // Prevent multi-hits per enemy
-                        p.hitPool = p.hitPool || new Set();
-                        if (p.hitPool.has(e)) return;
-                        p.hitPool.add(e);
-
                         e.takeDamage(p.damage, p.damageColor, p.aetherCharge);
 
                         // Apply Status (Standard Projectiles)

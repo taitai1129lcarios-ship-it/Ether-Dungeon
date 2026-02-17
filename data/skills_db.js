@@ -454,7 +454,7 @@ export const skillsDB = [
         behavior: 'lunatic_snicker_strike',
         description: '画面内の全ての敵をターゲットし、狂気の如き深紅の十文字を刻み込む奥義。',
         params: {
-            damage: 25,
+            damage: 12,
             life: 0.3, // Slightly longer than normal for impact
             width: 140, // Larger than normal
             height: 140,
