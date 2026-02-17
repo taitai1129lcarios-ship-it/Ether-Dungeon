@@ -130,7 +130,7 @@ export class Goblin extends Enemy {
         if (this.isTelegraphing) {
             ctx.save();
             ctx.beginPath();
-            const attackRadius = 150; // Unified attack range
+            const attackRadius = 112; // 150 * 0.75 = 112.5
             ctx.arc(this.x + this.width / 2, this.y + this.height / 2, attackRadius, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
             ctx.lineWidth = 2;
@@ -155,8 +155,13 @@ export class Goblin extends Enemy {
     }
 
     executeAttack() {
-        const attackRadius = 150;
-        const dist = Math.sqrt((this.game.player.x - this.x) ** 2 + (this.game.player.y - this.y) ** 2);
+        const attackRadius = 112;
+        const goblinCenterX = this.x + this.width / 2;
+        const goblinCenterY = this.y + this.height / 2;
+        const playerCenterX = this.game.player.x + this.game.player.width / 2;
+        const playerCenterY = this.game.player.y + this.game.player.height / 2;
+
+        const dist = Math.sqrt((playerCenterX - goblinCenterX) ** 2 + (playerCenterY - goblinCenterY) ** 2);
 
         // Show attack image for 0.3 seconds
         this.attackImageTimer = 0.3;
@@ -164,18 +169,36 @@ export class Goblin extends Enemy {
         if (dist < attackRadius) {
             this.game.player.takeDamage(20);
             this.game.camera.shake(0.3, 10);
+        }
 
-            // Visual Effect
+        // Shockwave Visual Effect (Multiple Rings)
+        for (let i = 0; i < 3; i++) {
             this.game.animations.push({
                 type: 'circle',
-                x: this.x + this.width / 2,
-                y: this.y + this.height / 2,
-                radius: attackRadius,
-                color: 'rgba(255, 100, 0, 0.5)',
-                life: 0.3,
-                maxLife: 0.3
+                x: goblinCenterX,
+                y: goblinCenterY,
+                radius: 10,
+                targetRadius: attackRadius * (1 - i * 0.2),
+                color: `rgba(255, 100, 0, ${0.4 - i * 0.1})`,
+                life: 0.4 + i * 0.1,
+                maxLife: 0.4 + i * 0.1,
+                update: function (dt) {
+                    this.life -= dt;
+                    const p = 1 - (this.life / this.maxLife);
+                    this.currentRadius = this.radius + (this.targetRadius - this.radius) * p;
+                },
+                draw: function (ctx) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.currentRadius, 0, Math.PI * 2);
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 4 * (this.life / this.maxLife);
+                    ctx.stroke();
+                    ctx.restore();
+                }
             });
         }
+
         this.attackCooldown = 3.0;
         this.stunTimer = 2.0; // Stun for 2 seconds after attack
     }
