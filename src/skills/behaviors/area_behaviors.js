@@ -1045,6 +1045,14 @@ export const areaBehaviors = {
         const angleStep = (Math.PI * 2) / petalCount;
         const isCastInRush = user.isAetherRush;
 
+        // Scaling for Normal Mode (30% reduction)
+        const sizeScale = isCastInRush ? 1.0 : 0.7;
+        const adjustedParams = {
+            ...params,
+            width: (params.width || 24) * sizeScale,
+            height: (params.height || 60) * sizeScale
+        };
+
         // SFX/Visual Feed for Activation
         if (game.camera) game.camera.shake(0.3, 8);
 
@@ -1053,7 +1061,7 @@ export const areaBehaviors = {
         for (let i = 0; i < petalCount; i++) {
             const angle = i * angleStep;
             const proj = spawnProjectile(game, user.x, user.y, 0, 0, {
-                ...params,
+                ...adjustedParams,
                 damage: 0,
                 onHitEnemy: () => { }, // Disable damage during bloom
                 onHitWall: () => { },
