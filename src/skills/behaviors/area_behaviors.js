@@ -1,4 +1,4 @@
-import { spawnExplosion, spawnIceShatter, spawnProjectile, spawnAetherExplosion } from './common.js';
+import { spawnExplosion, spawnIceShatter, spawnProjectile, spawnAetherExplosion, spawnLightningBolt, spawnLightningBurst, spawnThunderBurstImpact, spawnThunderfallImpact } from '../common.js';
 import { getCachedImage } from '../../utils.js';
 
 export const areaBehaviors = {

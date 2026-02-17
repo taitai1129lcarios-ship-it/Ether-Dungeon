@@ -11,7 +11,7 @@ export class Map {
         this.tiles = [];
         this.rooms = [];
         this.wallImage = getCachedImage('assets/wall.png');
-        this.stairsImage = getCachedImage('assets/portal.png');
+        this.stairsImage = getCachedImage('assets/portal_stairs.png');
     }
 
     generate() {

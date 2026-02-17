@@ -1,4 +1,4 @@
-import { spawnExplosion, spawnIceShatter, spawnProjectile, spawnLightningBurst, spawnBounceSparkImpact } from './common.js';
+import { spawnExplosion, spawnIceShatter, spawnProjectile, spawnLightningBurst, spawnBounceSparkImpact } from '../common.js';
 import { getCachedImage } from '../../utils.js';
 
 export const projectileBehaviors = {
