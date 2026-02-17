@@ -1,30 +1,27 @@
+import { getCachedImage } from '../utils.js';
 
 // Helper for spawning projectiles
 export const spawnProjectile = (game, x, y, vx, vy, params) => {
     // Image Caching
-    let image = null;
-    if (params.spriteSheet) {
-        if (!window.imageCache) window.imageCache = {};
-        if (window.imageCache[params.spriteSheet]) {
-            image = window.imageCache[params.spriteSheet];
-        } else {
-            image = new Image();
-            image.src = params.spriteSheet;
-            window.imageCache[params.spriteSheet] = image;
-        }
-    }
+    const image = params.spriteSheet ? getCachedImage(params.spriteSheet) : null;
 
     // JSON Data Logic
     if (params.spriteData && !params._loadedFrames) {
-        params._loadedFrames = [];
-        fetch(params.spriteData)
-            .then(r => r.json())
-            .then(data => {
-                const keys = Object.keys(data.frames).sort();
-                const frames = keys.map(k => data.frames[k].frame);
-                params._loadedFrames.push(...frames);
-            })
-            .catch(e => console.error("Failed to load sprite data", e));
+        if (!window.spriteDataCache) window.spriteDataCache = {};
+        if (window.spriteDataCache[params.spriteData]) {
+            params._loadedFrames = window.spriteDataCache[params.spriteData];
+        } else {
+            params._loadedFrames = [];
+            fetch(params.spriteData)
+                .then(r => r.json())
+                .then(data => {
+                    const keys = Object.keys(data.frames).sort();
+                    const frames = keys.map(k => data.frames[k].frame);
+                    params._loadedFrames.push(...frames);
+                    window.spriteDataCache[params.spriteData] = params._loadedFrames;
+                })
+                .catch(e => console.error("Failed to load sprite data", e));
+        }
     }
 
     const w = params.width || params.size || 10;
@@ -42,32 +39,45 @@ export const spawnProjectile = (game, x, y, vx, vy, params) => {
         maxLife: params.life,
         color: params.color,
         damage: params.damage,
-        damageColor: params.damageColor, // Add damageColor from params
-        aetherCharge: params.aetherCharge !== undefined ? params.aetherCharge : 1.0, // Default 1.0, allow 0
+        damageColor: params.damageColor,
+        aetherCharge: params.aetherCharge !== undefined ? params.aetherCharge : 1.0,
         statusEffect: params.statusEffect,
         statusChance: params.statusChance,
         shape: params.shape || 'circle',
-        noShake: params.noShake, // Support disabling shake
-        // Sprite Props
+        noShake: params.noShake,
+        pierce: params.pierce,
+        ignoreWallDestruction: params.ignoreWallDestruction,
         image: image,
         frames: params.frames || 1,
         spriteFrames: params._loadedFrames,
         frameRate: params.frameRate || 0.1,
-        scale: params.scale, // Optional scale override
-        scale: params.scale, // Optional scale override
+        scale: params.scale,
         rotation: params.rotation !== undefined ? params.rotation : 0,
         rotationOffset: params.rotationOffset || 0,
         fixedOrientation: params.fixedOrientation || false,
         frameX: 0,
         frameTimer: 0,
+        onDestroy: params.onDestroy,
+        onHitEnemy: params.onHitEnemy,
+        onHitWall: params.onHitWall,
+        ignoreWallDestruction: params.ignoreWallDestruction,
+        noTrail: params.noTrail,
+        iceTrail: params.iceTrail,
+        ghostTrail: params.ghostTrail,
+        ghostInterval: params.ghostInterval,
+        ghostLife: params.ghostLife,
+        ghostFilter: params.ghostFilter,
+        trailColor: params.trailColor,
         update: function (dt) {
+            this.vx += (this.ax || 0) * dt;
+            this.vy += (this.ay || 0) * dt;
             this.x += this.vx * dt;
             this.y += this.vy * dt;
             this.life -= dt;
+            if (this.life <= 0 && this.onDestroy) this.onDestroy(game);
 
             // Animate Sprite
             const frameCount = (this.spriteFrames && this.spriteFrames.length > 0) ? this.spriteFrames.length : this.frames;
-
             if (this.image && frameCount > 1) {
                 this.frameTimer += dt;
                 if (this.frameTimer >= this.frameRate) {
@@ -81,8 +91,8 @@ export const spawnProjectile = (game, x, y, vx, vy, params) => {
                 this.rotation = Math.random() * Math.PI * 2;
             }
 
-            // Trail
-            if (!params.noTrail && Math.random() < 0.8) {
+            // General Trail
+            if (!this.noTrail && Math.random() < 0.8) {
                 if (this.shape === 'slash') {
                     game.animations.push({
                         type: 'particle',
@@ -96,42 +106,111 @@ export const spawnProjectile = (game, x, y, vx, vy, params) => {
                         vx: this.vx * 0.1,
                         vy: this.vy * 0.1
                     });
+                } else {
+                    game.animations.push({
+                        type: 'particle',
+                        x: this.x + Math.random() * this.w,
+                        y: this.y + Math.random() * this.h,
+                        w: 3 + Math.random() * 3,
+                        h: 3 + Math.random() * 3,
+                        life: 0.4,
+                        maxLife: 0.4,
+                        color: this.trailColor || (this.iceTrail ? 'rgba(180, 230, 255, 0.4)' : 'rgba(255,100,0,1)'),
+                        shape: params.trailShape,
+                        vx: (Math.random() - 0.5) * 30,
+                        vy: (Math.random() - 0.5) * 30
+                    });
                 }
             }
 
-            // Jitter Effect (Vibration)
+            // Jitter Effect
             if (this.shape === 'triangle' && params.crackle) {
                 this.x += (Math.random() - 0.5) * 2;
                 this.y += (Math.random() - 0.5) * 2;
             }
-            if (!params.noTrail && this.shape !== 'slash') { // Added check to avoid double trail for slash
-                game.animations.push({
-                    type: 'particle',
-                    x: this.x + Math.random() * this.w,
-                    y: this.y + Math.random() * this.h,
-                    w: 3 + Math.random() * 3,
-                    h: 3 + Math.random() * 3,
-                    life: 0.4,
-                    maxLife: 0.4,
-                    color: params.trailColor || 'rgba(255,100,0,1)',
-                    shape: params.trailShape, // Pass shape
-                    vx: (Math.random() - 0.5) * 30,
-                    vy: (Math.random() - 0.5) * 30
-                });
+
+            // Ice Trail (Ice Fragments)
+            if (this.iceTrail) {
+                // High density spawn for fast projectiles
+                const spawnCount = Math.random() < 0.8 ? 2 : 1;
+                for (let i = 0; i < spawnCount; i++) {
+                    const partId = Math.floor(Math.random() * 9) + 1;
+                    const spritePath = `assets/ice_part_0${partId}.png`;
+                    const size = 6 + Math.random() * 10;
+                    game.animations.push({
+                        type: 'particle',
+                        x: this.x + this.w / 2 + (Math.random() - 0.5) * this.w,
+                        y: this.y + this.h / 2 + (Math.random() - 0.5) * this.h,
+                        w: size,
+                        h: size,
+                        rotation: Math.random() * Math.PI * 2,
+                        vr: (Math.random() - 0.5) * 10,
+                        life: 0.4 + Math.random() * 0.3,
+                        maxLife: 0.7,
+                        image: spritePath,
+                        vx: (Math.random() - 0.5) * 30 - this.vx * 0.05,
+                        vy: (Math.random() - 0.5) * 30 - this.vy * 0.05,
+                        update: function (dt) {
+                            this.life -= dt;
+                            this.x += this.vx * dt;
+                            this.y += this.vy * dt;
+                            this.vx *= 0.96;
+                            this.vy *= 0.96;
+                            this.rotation += this.vr * dt;
+                        },
+                        draw: function (ctx) {
+                            const alpha = this.life / this.maxLife;
+                            ctx.save();
+                            ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
+                            ctx.rotate(this.rotation);
+                            ctx.globalAlpha = alpha * 0.7;
+                            const img = getCachedImage(this.image);
+                            if (img.complete && img.naturalWidth > 0) {
+                                ctx.drawImage(img, -this.w / 2, -this.h / 2, this.w, this.h);
+                            }
+                            ctx.restore();
+                        }
+                    });
+                }
             }
 
+            // Trajectory (Ghost Trail)
+            if (this.ghostTrail) {
+                this._ghostTimer = (this._ghostTimer || 0) + dt;
+                if (this._ghostTimer >= (this.ghostInterval || 0.05)) {
+                    this._ghostTimer = 0;
+                    game.animations.push({
+                        type: 'ghost',
+                        x: this.x,
+                        y: this.y,
+                        w: this.w,
+                        h: this.h,
+                        image: this.image,
+                        rotation: this.rotation,
+                        life: this.ghostLife || 0.3,
+                        maxLife: this.ghostLife || 0.3,
+                        update: function (dt) { this.life -= dt; },
+                        draw: function (ctx) {
+                            ctx.save();
+                            ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
+                            ctx.rotate(this.rotation);
+                            ctx.globalAlpha = (this.life / this.maxLife) * 0.3;
+                            ctx.filter = this.ghostFilter || 'none';
+                            ctx.drawImage(this.image, -this.w / 2, -this.h / 2, this.w, this.h);
+                            ctx.restore();
+                        }
+                    });
+                }
+            }
 
             // Crackle Effect (Lightning)
             if (params.crackle) {
-                const count = 2; // Always spawn 2 per frame for intensity
+                const count = 2;
                 for (let i = 0; i < count; i++) {
-                    // Spawn small lightning part
                     const partId = Math.floor(Math.random() * 10) + 1;
                     const partStr = partId < 10 ? `0${partId}` : `${partId}`;
                     const spritePath = `assets/lightning_part_${partStr}.png`;
 
-                    // Rear Bias Logic
-                    // Calculate normalized velocity or direction vector
                     let dirX = 0, dirY = 0;
                     if (this.vx !== 0 || this.vy !== 0) {
                         const len = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
@@ -139,56 +218,34 @@ export const spawnProjectile = (game, x, y, vx, vy, params) => {
                         dirY = this.vy / len;
                     }
 
-                    // Bias towards rear: move center backwards
-                    // Needle length is approx max(w, h).
                     const length = Math.max(this.w, this.h);
-
-                    // Random Position: 
-                    // Along length: random roughly -0.8 to +0.2 relative to center (mostly behind)
-                    // Along width: random small spread
-
-                    // Refined Spread Logic
-                    // 1. Shift Center further back
                     const shiftBack = length * 0.4;
                     const centerX = -dirX * shiftBack;
                     const centerY = -dirY * shiftBack;
-
-                    // 2. Random Scatter
-                    // Along the path (lengthwise spread): heavy bias to rear
-                    // Use a range that covers mostly the tail area
                     const spreadLength = length * 0.8;
                     const rAlong = (Math.random() - 0.5) * spreadLength;
-
-                    // Across the path (widthwise spread): VERY tight to needle
-                    // Needle width is small (e.g., 6px). 
-                    // Let's use a small constant or ratio of width/height min
-                    const spreadWidth = 8; // Tight spread (total 16px width approx)
+                    const spreadWidth = 8;
                     const rAcross = (Math.random() - 0.5) * spreadWidth;
-
-                    // 3. Combine vectors
-                    // Position = (Center + shift) + (Dir * rAlong) + (Perp * rAcross)
-                    // Perpendicular vector: (-dirY, dirX)
 
                     const offsetX = centerX + (dirX * rAlong) + (-dirY * rAcross);
                     const offsetY = centerY + (dirY * rAlong) + (dirX * rAcross);
 
-                    // Determine Filter for Yellow
                     let filter = 'none';
                     if (params.crackleColor === '#FFFF00') {
-                        filter = 'sepia(1) saturate(10) hue-rotate(0deg) brightness(1.2)'; // Gold/Yellow
+                        filter = 'sepia(1) saturate(10) hue-rotate(0deg) brightness(1.2)';
                     }
 
                     spawnProjectile(game, this.x + this.w / 2 + offsetX, this.y + this.h / 2 + offsetY, 0, 0, {
-                        visual: true, // Visual only
-                        spriteSheet: spritePath, // Use asset
+                        visual: true,
+                        spriteSheet: spritePath,
                         frames: 1,
-                        life: 0.1, // Quick flash
-                        width: 15 + Math.random() * 20, // Reverted size
+                        life: 0.1,
+                        width: 15 + Math.random() * 20,
                         height: 15 + Math.random() * 20,
                         randomRotation: true,
                         rotation: Math.random() * Math.PI * 2,
                         color: params.crackleColor || '#a5f2f3',
-                        filter: filter, // Apply filter
+                        filter: filter,
                         blendMode: 'lighter',
                         noTrail: true
                     });
@@ -196,86 +253,87 @@ export const spawnProjectile = (game, x, y, vx, vy, params) => {
             }
         }
     };
+
     // Finalize
     if (params.visual) {
         proj.type = 'visual_projectile';
         game.animations.push(proj);
     } else {
-        // Unified Hit Handler Construction
-        // We need a custom handler if we have tickCount (DoT) OR special onHitEffects (Explosion)
-        const needsCustomHandler = (params.tickCount && params.tickCount > 0) || params.onHitEffect === 'explosion' || params.onHitEffect === 'lightning_burst';
+        const needsCustomHandler = (params.tickCount && params.tickCount > 0) ||
+            params.onHitEffect === 'explosion' ||
+            params.onHitEffect === 'lightning_burst' ||
+            params.onHitEffect === 'ice_shatter';
 
         if (needsCustomHandler) {
             proj.onHitEnemy = function (enemy, gameInstance) {
-                // 1. Initial Hit Damage
-                // Only deal initial damage if it hasn't been dealt (for DoT logic)
-                // BUT for simple projectiles, we deal effective 'impact' damage.
                 enemy.takeDamage(this.damage, this.damageColor, this.aetherCharge);
 
-                // 2. Visual Effects
+                // Apply Status (Even for custom handlers)
+                if (this.statusEffect && (!this.statusChance || Math.random() < this.statusChance)) {
+                    if (enemy.statusManager) {
+                        enemy.statusManager.applyStatus(this.statusEffect, 5.0);
+                    }
+                }
+
                 if (params.onHitEffect === 'lightning_burst') {
                     spawnLightningBurst(gameInstance, enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, {
                         burstCount: 5, burstSize: 60, burstSpeed: 150
                     });
                 } else if (params.onHitEffect === 'explosion') {
-                    // Use center of projectile for explosion origin
                     const ex = this.x + this.w / 2;
                     const ey = this.y + this.h / 2;
                     spawnExplosion(gameInstance, ex, ey, params.color || '#ff8800', 1.0, params.shakeIntensity !== undefined ? params.shakeIntensity : 1.0);
+                } else if (params.onHitEffect === 'ice_shatter') {
+                    spawnIceShatter(gameInstance, this.x + this.w / 2, this.y + this.h / 2, 8);
                 } else {
-                    // Default particles
-                    gameInstance.spawnParticles(this.x, this.y, 8, 'orange');
+                    const fallbackColor = params.trailColor || (params.iceTrail || params.damageColor === '#00ffff' ? '#00ffff' : 'orange');
+                    gameInstance.spawnParticles(this.x, this.y, 8, fallbackColor);
                 }
 
-                // 3. DoT Logic (if tickCount > 0)
+                // DoT
                 const remainingTicks = (params.tickCount || 0) - 1;
                 const interval = params.tickInterval || 0.1;
-
                 if (remainingTicks > 0) {
                     gameInstance.animations.push({
                         type: 'logic',
                         target: enemy,
                         damage: this.damage,
                         damageColor: this.damageColor,
-                        aetherCharge: this.aetherCharge, // Pass charge
+                        aetherCharge: this.aetherCharge,
                         ticks: remainingTicks,
                         timer: 0,
                         interval: interval,
                         life: remainingTicks * interval + 0.5,
                         update: function (dt) {
                             if (!this.target || this.target.markedForDeletion) {
-                                this.life = 0;
-                                return;
+                                this.life = 0; return;
                             }
                             this.timer += dt;
                             if (this.timer >= this.interval) {
                                 this.timer -= this.interval;
                                 this.ticks--;
                                 this.target.takeDamage(this.damage, this.damageColor, this.aetherCharge);
-                                gameInstance.spawnParticles(
-                                    this.target.x + this.target.width / 2,
-                                    this.target.y + this.target.height / 2,
-                                    3, '#FFFF00'
-                                );
+                                gameInstance.spawnParticles(this.target.x + this.target.width / 2, this.target.y + this.target.height / 2, 3, '#FFFF00');
                                 if (this.ticks <= 0) this.life = 0;
                             }
                         }
                     });
                 }
-
-                // 4. Destroy Projectile (unless it pierces, but standard assumption is destroy on impact)
-                // If it was a multi-hit DoT starter, the projectile itself is done.
                 this.life = 0;
             };
         }
 
-        // Attach Wall Handler for Explosions
         if (params.onHitEffect === 'explosion') {
             proj.onHitWall = function (gameInstance) {
                 const ex = this.x + this.w / 2;
                 const ey = this.y + this.h / 2;
                 spawnExplosion(gameInstance, ex, ey, params.color || '#ff8800', 1.0, params.shakeIntensity !== undefined ? params.shakeIntensity : 1.0);
-                this.life = 0; // Destroy self
+                this.life = 0;
+            };
+        } else if (params.onHitEffect === 'ice_shatter') {
+            proj.onHitWall = function (gameInstance) {
+                spawnIceShatter(gameInstance, this.x + this.w / 2, this.y + this.h / 2, 8);
+                this.life = 0;
             };
         }
 
@@ -680,5 +738,52 @@ export function spawnAetherExplosion(game, x, y) {
     // 3. Screen Shake
     if (game.camera) {
         game.camera.shake(0.3, 5); // Reduced from (0.8, 15) to be less jarring
+    }
+}
+
+// --- Ice Shatter Effect ---
+export function spawnIceShatter(game, x, y, count = 10) {
+    for (let i = 0; i < count; i++) {
+        const partId = Math.floor(Math.random() * 9) + 1;
+        const spritePath = `assets/ice_part_0${partId}.png`;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 100 + Math.random() * 300;
+        const size = 12 + Math.random() * 12;
+
+        game.animations.push({
+            type: 'ice_fragment',
+            x: x,
+            y: y,
+            w: size,
+            h: size,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            rotation: Math.random() * Math.PI * 2,
+            vr: (Math.random() - 0.5) * 10, // Rotation speed
+            life: 0.6 + Math.random() * 0.4,
+            maxLife: 1.0,
+            image: spritePath, // Cached image handled in draw
+            update: function (dt) {
+                this.life -= dt;
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.vx *= 0.96;
+                this.vy *= 0.96;
+                this.rotation += this.vr * dt;
+            },
+            draw: function (ctx) {
+                const alpha = Math.min(1.0, this.life * 2); // Quick fade out at end
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.globalAlpha = alpha;
+
+                const img = getCachedImage(this.image);
+                if (img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, -this.w / 2, -this.h / 2, this.w, this.h);
+                }
+                ctx.restore();
+            }
+        });
     }
 }

@@ -1,4 +1,5 @@
-import { spawnProjectile, spawnBounceSparkImpact, spawnExplosion, spawnLightningBurst } from '../common.js';
+import { spawnExplosion, spawnIceShatter, spawnProjectile, spawnLightningBurst, spawnBounceSparkImpact } from './common.js';
+import { getCachedImage } from '../../utils.js';
 
 export const projectileBehaviors = {
     'projectile': (user, game, params) => {
@@ -191,6 +192,107 @@ export const projectileBehaviors = {
         });
     },
 
+    'crimson_cross': (user, game, params) => {
+        // Two slashes crossed in an X shape
+        let baseRotation = 0;
+        let offsetX = 0;
+        let offsetY = 0;
+        const forward = params.forwardOffset || 40;
+
+        if (user.facing === 'right') { baseRotation = 0; offsetX = forward; }
+        if (user.facing === 'down') { baseRotation = Math.PI / 2; offsetY = forward; }
+        if (user.facing === 'left') { baseRotation = Math.PI; offsetX = -forward; }
+        if (user.facing === 'up') { baseRotation = -Math.PI / 2; offsetY = -forward; }
+
+        const spawnX = user.x + user.width / 2 + offsetX;
+        const spawnY = user.y + user.height / 2 + offsetY;
+
+        // Slash 1: +45 degrees
+        spawnProjectile(game, spawnX, spawnY, 0, 0, {
+            ...params,
+            vx: 0, vy: 0,
+            rotation: baseRotation + Math.PI / 4,
+            fixedOrientation: true,
+            noShake: true
+        });
+
+        // Slash 2: -45 degrees (Delayed)
+        spawnProjectile(game, spawnX, spawnY, 0, 0, {
+            ...params,
+            vx: 0, vy: 0,
+            rotation: baseRotation - Math.PI / 4,
+            fixedOrientation: true,
+            noShake: true,
+            startDelay: 0.1 // 0.1s interval requested
+        });
+    },
+
+    'lunatic_snicker_strike': (user, game, params) => {
+        // Collect all enemies on screen
+        const targets = game.enemies.filter(e =>
+            !e.markedForDeletion &&
+            game.camera.isVisible(e.x, e.y, e.width, e.height)
+        );
+
+        if (targets.length === 0) return;
+
+        // Visual Impact: Initial Shake
+        game.camera.shake(0.4, 8);
+
+        // STAGGERED EXECUTION
+        const delayPerStrike = 0.05;
+        let cumulativeDelay = 0;
+
+        // In Rush: Hit everyone multiple times
+        const hitsPerEnemy = user.isAetherRush ? 3 : 1;
+
+        targets.forEach((target) => {
+            for (let h = 0; h < hitsPerEnemy; h++) {
+                const strikeDelay = cumulativeDelay + (h * 0.1);
+
+                game.animations.push({
+                    type: 'logic',
+                    life: strikeDelay + 0.01, // Short logic life
+                    timer: strikeDelay,
+                    update: function (dt) {
+                        this.timer -= dt;
+                        if (this.timer <= 0 && !this.executed) {
+                            this.executed = true;
+                            // EXECUTE X-SLASH on target
+                            if (target && !target.markedForDeletion) {
+                                const spawnX = target.x + target.width / 2;
+                                const spawnY = target.y + target.height / 2;
+                                // Random base rotation for each strike to make it look "crazy"
+                                const baseRotation = Math.random() * Math.PI * 2;
+
+                                // Slash 1
+                                spawnProjectile(game, spawnX, spawnY, 0, 0, {
+                                    ...params,
+                                    rotation: baseRotation + Math.PI / 4,
+                                    fixedOrientation: true,
+                                    noShake: true
+                                });
+                                // Slash 2 (Internal delay)
+                                spawnProjectile(game, spawnX, spawnY, 0, 0, {
+                                    ...params,
+                                    rotation: baseRotation - Math.PI / 4,
+                                    fixedOrientation: true,
+                                    noShake: true,
+                                    startDelay: 0.05 // Faster delay for ultimate
+                                });
+
+                                // Extra particle burst
+                                game.spawnParticles(spawnX, spawnY, 10, params.damageColor);
+                            }
+                        }
+                    }
+                });
+
+                cumulativeDelay += delayPerStrike;
+            }
+        });
+    },
+
     'bouncing_projectile': (user, game, params) => {
         let w = params.width || 10;
         let h = params.height || 10;
@@ -369,9 +471,8 @@ export const projectileBehaviors = {
         const w = params.width || 48;
         const h = params.height || 48;
 
-        // Image Loading (similar to spawnProjectile)
-        const image = new Image();
-        image.src = params.spriteSheet || params.icon; // Use icon as fallback if no sheet
+        // Image Loading (Cached)
+        const image = getCachedImage(params.spriteSheet || params.icon);
 
         const proj = {
             active: true,
@@ -517,17 +618,7 @@ export const projectileBehaviors = {
 
         // Image Loading (Cached)
         const imageSrc = params.spriteSheet || params.icon;
-        let image = null;
-        if (imageSrc) {
-            if (!window.imageCache) window.imageCache = {};
-            if (window.imageCache[imageSrc]) {
-                image = window.imageCache[imageSrc];
-            } else {
-                image = new Image();
-                image.src = imageSrc;
-                window.imageCache[imageSrc] = image;
-            }
-        }
+        const image = imageSrc ? getCachedImage(imageSrc) : null;
 
         const proj = {
             active: true,

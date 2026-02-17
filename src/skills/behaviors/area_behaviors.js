@@ -1,4 +1,5 @@
-import { spawnProjectile, spawnLightningBurst, spawnLightningBolt, spawnThunderfallImpact, spawnThunderBurstImpact } from '../common.js';
+import { spawnExplosion, spawnIceShatter, spawnProjectile, spawnAetherExplosion } from './common.js';
+import { getCachedImage } from '../../utils.js';
 
 export const areaBehaviors = {
     'area_blast': (user, game, params) => {
@@ -146,15 +147,7 @@ export const areaBehaviors = {
         // Lock movement during activation
         user.isCasting = true;
 
-        const imageSrc = params.spriteSheet;
-        let image = null;
-        if (imageSrc) {
-            if (!game.images[imageSrc]) {
-                game.images[imageSrc] = new Image();
-                game.images[imageSrc].src = imageSrc;
-            }
-            image = game.images[imageSrc];
-        }
+        const image = params.spriteSheet ? getCachedImage(params.spriteSheet) : null;
 
         // Spawner state
         let spawnedCount = 0;
@@ -535,14 +528,7 @@ export const areaBehaviors = {
                 const count = params.visualSpikeCount || 15;
                 const visualImgName = 'assets/ice_spike.png';
 
-                // Preload check (should be loaded by createSkill usually, but safe to check)
-                if (!window.imageCache) window.imageCache = {};
-                if (!window.imageCache[visualImgName]) {
-                    const img = new Image();
-                    img.src = visualImgName;
-                    window.imageCache[visualImgName] = img;
-                }
-                const vImg = window.imageCache[visualImgName];
+                const vImg = getCachedImage(visualImgName);
 
                 for (let i = 0; i < count; i++) {
                     // Distribute spikes within the crystal shape roughly
@@ -684,14 +670,7 @@ export const areaBehaviors = {
                             // Actually, let's just use spawnProjectile with 'ice_spike_burst' style?
                             // Simplified: Spawn a short-lived damage zone at enemy feet.
 
-                            // Image Loading
-                            const spriteSheet = 'assets/ice_spike.png';
-                            if (!window.imageCache) window.imageCache = {};
-                            if (!window.imageCache[spriteSheet]) {
-                                window.imageCache[spriteSheet] = new Image();
-                                window.imageCache[spriteSheet].src = spriteSheet;
-                            }
-                            const img = window.imageCache[spriteSheet];
+                            const img = getCachedImage(spriteSheet);
 
                             const spikeLife = 0.5;
                             const maxH = 46;
@@ -955,70 +934,54 @@ export const areaBehaviors = {
     },
 
     'global_strike': (user, game, params) => {
-        // 1. Global Flash Effect
-        game.animations.push({
-            type: 'flash', // Handled by game loop or custom drawer
-            life: 0.2,
-            maxLife: 0.2,
-            color: 'rgba(255, 255, 255, 0.8)', // Bright white flash
-            update: function (dt) {
-                this.life -= dt;
-            },
-            draw: function (ctx) { // Custom draw for fullscreen flash
-                ctx.fillStyle = this.color;
-                ctx.globalAlpha = this.life / this.maxLife;
-                ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-                ctx.globalAlpha = 1.0;
-            }
-        });
-
         // 2. Heavy Screen Shake
         const initialShakePower = user.isAetherRush ? 6 : 10;
         const initialShakeDuration = user.isAetherRush ? 0.3 : 0.5;
         game.camera.shake(initialShakeDuration, initialShakePower);
 
-        // 3. Strike All Enemies
+        // 3. Target List
         const targets = game.enemies.filter(e => !e.markedForDeletion);
 
+        // Handle empty targets (Visual Fallback)
         if (targets.length === 0) {
-            // If no valid targets, strike random points for effect
-            const randomCount = user.isAetherRush ? 15 : 5;
+            const isRush = user.isAetherRush;
+            const randomCount = isRush ? 20 : 5;
             for (let i = 0; i < randomCount; i++) {
                 const tx = user.x + (Math.random() - 0.5) * 600;
                 const ty = user.y + (Math.random() - 0.5) * 400;
                 spawnLightningBolt(game, tx, ty, {
                     height: 800, segments: 40, deviation: 60, thickness: 40, color: '#ffff00'
                 });
-                spawnThunderfallImpact(game, tx, ty, 2.0); // 2x Scale
+                spawnThunderfallImpact(game, tx, ty, 1.5);
             }
             return;
         }
 
-        // Determine Total Bolt Count
-        let totalBolts = params.count || 20;
-        if (user.isAetherRush) {
-            totalBolts = totalBolts * 3; // 5 * 3 = 15 bolts
-        }
+        // Determine Hit Count and Bolts per Hit
+        const isRush = user.isAetherRush;
+        const baseCount = params.count || 5;
+        const hitCount = isRush ? 10 : baseCount; // 10 waves in rush
+        const boltsPerHit = isRush ? 2 : 1; // 2 bolts per wave in rush
 
-        // Queue strikes randomly
+        const interval = 0.05;
         const strikeQueue = [];
         let totalDelay = 0;
-        // Faster interval for high count
-        const interval = 0.05; // 5 bolts * 0.05 = 0.25s total duration
 
-        for (let i = 0; i < totalBolts; i++) {
-            // Pick rand enemy
-            const targetIndex = Math.floor(Math.random() * targets.length);
-            const target = targets[targetIndex];
+        for (let i = 0; i < hitCount; i++) {
+            for (let j = 0; j < boltsPerHit; j++) {
+                // Pick rand enemy
+                const targetIndex = Math.floor(Math.random() * targets.length);
+                const target = targets[targetIndex];
 
-            // Offset
-            const offset = 40; // Random area around target
+                // Offset
+                const offset = 40; // Random area around target
 
-            strikeQueue.push({
-                target: target,
-                offset: offset,
-                delay: totalDelay
-            });
+                strikeQueue.push({
+                    target: target,
+                    offset: offset,
+                    delay: totalDelay
+                });
+            }
 
             totalDelay += interval + Math.random() * 0.01;
         }
@@ -1059,7 +1022,7 @@ export const areaBehaviors = {
                         });
 
                         // Visuals: Massive Impact
-                        spawnThunderfallImpact(game, ex, ey, 2.0);
+                        spawnThunderfallImpact(game, ex, ey, 1.5);
 
                         // Camera Shake PER BOLT
                         const boltShakePower = user.isAetherRush ? 2 : 5;
@@ -1080,84 +1043,120 @@ export const areaBehaviors = {
         const bloomRadius = params.bloomRadius || 60;
         const bloomDuration = params.bloomDuration || 0.8;
         const angleStep = (Math.PI * 2) / petalCount;
+        const isCastInRush = user.isAetherRush;
 
         // SFX/Visual Feed for Activation
         if (game.camera) game.camera.shake(0.3, 8);
 
-        // Create "Petals" (Animations that represent the blooming phase)
+        // Create "Petals" (Projectiles that follow the user during bloom)
+        const petals = [];
         for (let i = 0; i < petalCount; i++) {
             const angle = i * angleStep;
-            game.animations.push({
-                type: 'ice_petal',
-                angle: angle,
-                life: bloomDuration + 0.1, // Stay slightly longer than bloom
-                maxLife: bloomDuration + 0.1,
-                x: user.x + user.width / 2 + Math.cos(angle) * bloomRadius,
-                y: user.y + user.height / 2 + Math.sin(angle) * bloomRadius,
-                width: params.width || 20,
-                height: params.height || 50,
-                draw: function (ctx) {
-                    ctx.save();
-                    ctx.translate(this.x, this.y);
-                    ctx.rotate(this.angle + Math.PI / 2); // Point outward
-
-                    // Fade in
-                    const alpha = Math.min(1.0, (this.maxLife - this.life) * 5);
-                    ctx.globalAlpha = alpha;
-
-                    // Use spike sprite if available, otherwise fallback
-                    const img = new Image();
-                    img.src = params.spriteSheet || 'assets/ice_spike.png';
-                    if (img.complete) {
-                        ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height);
-                    } else {
-                        ctx.fillStyle = '#00ffff';
-                        ctx.beginPath();
-                        ctx.moveTo(0, -this.height / 2);
-                        ctx.lineTo(this.width / 2, this.height / 2);
-                        ctx.lineTo(-this.width / 2, this.height / 2);
-                        ctx.fill();
-                    }
-                    ctx.restore();
-                },
-                update: function (dt) {
-                    this.life -= dt;
-                    // Follow user slightly during bloom
-                    this.x = user.x + user.width / 2 + Math.cos(this.angle) * bloomRadius;
-                    this.y = user.y + user.height / 2 + Math.sin(this.angle) * bloomRadius;
-                }
+            const proj = spawnProjectile(game, user.x, user.y, 0, 0, {
+                ...params,
+                damage: 0,
+                onHitEnemy: () => { }, // Disable damage during bloom
+                onHitWall: () => { },
+                ignoreWallDestruction: true,
+                noTrail: true,
+                noShake: true,
+                rotation: angle,
+                life: bloomDuration + (params.burstLife || 1.2)
             });
+            proj._lotusAngle = angle;
+            petals.push(proj);
         }
 
-        // Logic entity to handle the burst phase transition
+        // Logic entity to handle the bloom movement and burst transition
         game.animations.push({
             type: 'logic',
             life: bloomDuration,
             update: function (dt) {
                 this.life -= dt;
+
+                // Keep spikes in orbit
+                const cx = user.x + user.width / 2;
+                const cy = user.y + user.height / 2;
+                petals.forEach(p => {
+                    if (!p.active) return;
+                    p.x = cx + Math.cos(p._lotusAngle) * bloomRadius - p.w / 2;
+                    p.y = cy + Math.sin(p._lotusAngle) * bloomRadius - p.h / 2;
+                    p.rotation = p._lotusAngle;
+                });
+
                 if (this.life <= 0) {
                     // BURST!
                     if (game.camera) game.camera.shake(0.5, 12);
+                    spawnIceShatter(game, cx, cy, 20); // Center burst
 
-                    for (let i = 0; i < petalCount; i++) {
-                        const angle = i * angleStep;
-                        const vx = Math.cos(angle) * (params.burstSpeed || 800);
-                        const vy = Math.sin(angle) * (params.burstSpeed || 800);
+                    petals.forEach(p => {
+                        if (!p.active) return;
+                        p.vx = Math.cos(p._lotusAngle) * (params.burstSpeed || 900);
+                        p.vy = Math.sin(p._lotusAngle) * (params.burstSpeed || 900);
+                        p.damage = params.damage || 30;
+                        p.ignoreWallDestruction = false;
+                        p.noTrail = false;
+                        p.iceTrail = true;
+                        p.ghostTrail = true;
+                        p.ghostFilter = 'brightness(1.5) hue-rotate(-20deg)';
+                        p.ghostInterval = 0.04;
+                        p.noShake = true;
 
-                        spawnProjectile(
-                            game,
-                            user.x + user.width / 2 + Math.cos(angle) * bloomRadius,
-                            user.y + user.height / 2 + Math.sin(angle) * bloomRadius,
-                            vx,
-                            vy,
-                            {
-                                ...params,
-                                life: params.burstLife || 1.0,
-                                pierce: 999, // Pierces all enemies
-                                noShake: true // We already shook the camera
+                        // Restore Hit Handler
+                        p.onHitEnemy = function (enemy, gameInstance) {
+                            enemy.takeDamage(this.damage, this.damageColor, this.aetherCharge);
+                            spawnIceShatter(gameInstance, this.x + this.w / 2, this.y + this.h / 2, 8);
+
+                            // Aether Rush Scatter Effect
+                            if (isCastInRush) {
+                                for (let i = 0; i < 3; i++) {
+                                    const angle = Math.random() * Math.PI * 2;
+                                    const speed = (params.burstSpeed || 900) * 0.6;
+                                    spawnProjectile(gameInstance, this.x + this.w / 2, this.y + this.h / 2, Math.cos(angle) * speed, Math.sin(angle) * speed, {
+                                        ...params,
+                                        damage: 5,
+                                        width: this.w * 0.5,
+                                        height: this.h * 0.5,
+                                        isAetherRush: false, // Prevent infinite loops
+                                        iceTrail: true,
+                                        ghostTrail: true,
+                                        ghostInterval: 0.1,
+                                        pierce: 999,
+                                        life: 0.6
+                                    });
+                                }
                             }
-                        );
-                    }
+
+                            if (!isCastInRush) {
+                                this.life = 0; // Disable pierce for normal spikes
+                            }
+                        };
+                        p.onHitWall = function (gameInstance) {
+                            spawnIceShatter(gameInstance, this.x + this.w / 2, this.y + this.h / 2, 8);
+
+                            // Aether Rush Scatter Effect
+                            if (isCastInRush) {
+                                for (let i = 0; i < 3; i++) {
+                                    const angle = Math.random() * Math.PI * 2;
+                                    const speed = (params.burstSpeed || 900) * 0.6;
+                                    spawnProjectile(gameInstance, this.x + this.w / 2, this.y + this.h / 2, Math.cos(angle) * speed, Math.sin(angle) * speed, {
+                                        ...params,
+                                        damage: 5,
+                                        width: this.w * 0.5,
+                                        height: this.h * 0.5,
+                                        isAetherRush: false, // Prevent infinite loops
+                                        iceTrail: true,
+                                        ghostTrail: true,
+                                        ghostInterval: 0.1,
+                                        pierce: 999,
+                                        life: 0.6
+                                    });
+                                }
+                            }
+
+                            this.life = 0;
+                        };
+                    });
                 }
             }
         });

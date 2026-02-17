@@ -1,7 +1,8 @@
 
 export const STATUS_TYPES = {
     BLEED: 'bleed',
-    SLOW: 'slow'
+    SLOW: 'slow',
+    BURN: 'burn'
 };
 
 export class StatusManager {
@@ -23,7 +24,11 @@ export class StatusManager {
             const effect = this.effects.get(type);
             effect.timer = duration; // Reset timer
             if (magnitude !== null) effect.magnitude = magnitude; // Update magnitude if provided
-            if (effect.stacks < maxStacks) {
+
+            // Limit stacks (Special case for Burn: effectively unlimited)
+            const limit = (type === STATUS_TYPES.BURN) ? 999 : maxStacks;
+
+            if (effect.stacks < limit) {
                 effect.stacks++;
                 this.showStatusText(type, effect.stacks);
             }
@@ -33,6 +38,18 @@ export class StatusManager {
     update(dt) {
         for (const [type, effect] of this.effects) {
             effect.timer -= dt;
+
+            // Handle Damage Over Time (BURN)
+            if (type === STATUS_TYPES.BURN) {
+                effect.tickTimer = (effect.tickTimer || 0) + dt;
+                if (effect.tickTimer >= 1.0) { // Tick every 1 second
+                    effect.tickTimer -= 1.0;
+                    const dmg = effect.stacks * 2; // 2 damage per stack
+                    this.owner.takeDamage(dmg, '#ff6600', 0); // Orange color, no aether gain
+                    this.showStatusText('burn_tick', dmg);
+                }
+            }
+
             if (effect.timer <= 0) {
                 this.effects.delete(type);
             }
@@ -73,6 +90,12 @@ export class StatusManager {
         if (type === STATUS_TYPES.BLEED) {
             text = `Bleed ${stacks}`;
             color = '#ff0000';
+        } else if (type === STATUS_TYPES.BURN) {
+            text = `Burn ${stacks}`;
+            color = '#ff6600';
+        } else if (type === 'burn_tick') {
+            text = `-${stacks}`; // Just show damage value for ticks
+            color = '#ff6600';
         }
 
         if (this.owner.game) {
@@ -89,5 +112,13 @@ export class StatusManager {
                 font: '12px sans-serif'
             });
         }
+    }
+
+    getActiveEffects() {
+        const active = [];
+        for (const [type, effect] of this.effects) {
+            active.push({ type, stacks: effect.stacks });
+        }
+        return active;
     }
 }

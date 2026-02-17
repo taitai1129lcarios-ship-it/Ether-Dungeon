@@ -66,4 +66,8 @@
 **概要:** 壁に反射する電気の弾。
 **スタイル:** ピクセルアート、アイコン、黒背景。
 **Prompt:**
-`yellow electric orb bouncing off a wall, lightning ricochet effect, zig-zag trajectory, high voltage spark, 2D game icon, pixel art, black background, vibrant yellow and cyan colors`
+
+## Glacial Lotus (グラシアル・ロータス)
+**概要:** 周囲に巨大な氷の蓮を展開し、一斉に射出する奥義。
+**Prompt:**
+`glacial lotus skill icon, blooming lotus flower made of sharp ice spikes, crystalline petals, cyan and white glowing magic energy, frozen crystal texture, ultimate ability, symmetrical, high contrast, pixel art, 2D game asset, white background`

@@ -1,12 +1,17 @@
-import { Entity } from './utils.js';
-import { skillsDB } from '../data/skills_db.js';
-import { createSkill } from './skills/index.js';
+import { Entity, getCachedImage } from './utils.js';
+import { SkillType, spawnAetherExplosion } from './skills/index.js';
 import { StatusManager } from './status_effects.js';
 
 const textures = {
     slime: 'assets/slime.png',
     bat: 'assets/bat.png',
     goblin: 'assets/goblin.png'
+};
+
+const statusIcons = {
+    bleed: getCachedImage('assets/icon_bleed.png'),
+    slow: getCachedImage('assets/icon_ice.png'),
+    burn: getCachedImage('assets/icon_burn.png')
 };
 
 // --- Enemy Classes ---
@@ -17,10 +22,7 @@ export class Enemy extends Entity {
         this.speed = speed;
         this.damage = 10; // Default contact damage
         this.flashTimer = 0; // Initialize flash timer
-        this.image = new Image();
-        if (textures[textureKey]) {
-            this.image.src = textures[textureKey];
-        }
+        this.image = textures[textureKey] ? getCachedImage(textures[textureKey]) : new Image();
         this.statusManager = new StatusManager(this);
     }
 
@@ -121,6 +123,34 @@ export class Enemy extends Entity {
                 ctx.fillRect(Math.floor(this.x), Math.floor(this.y - 6), this.width, 4);
                 ctx.fillStyle = 'green';
                 ctx.fillRect(Math.floor(this.x), Math.floor(this.y - 6), this.width * (this.hp / this.maxHp), 4);
+            }
+
+            // Draw Status Icons
+            const activeEffects = this.statusManager.getActiveEffects();
+            if (activeEffects.length > 0) {
+                const iconSize = 16;
+                const spacing = 4;
+                const startY = this.y - 25; // Above HP bar
+                let currentX = this.x;
+
+                activeEffects.forEach(effect => {
+                    const icon = statusIcons[effect.type];
+                    if (icon && icon.complete && icon.naturalWidth !== 0) {
+                        ctx.drawImage(icon, Math.floor(currentX), Math.floor(startY), iconSize, iconSize);
+
+                        // Draw Stack Count
+                        if (effect.stacks > 1) {
+                            ctx.fillStyle = 'white';
+                            ctx.font = 'bold 10px sans-serif';
+                            ctx.strokeStyle = 'black';
+                            ctx.lineWidth = 2;
+                            ctx.strokeText(effect.stacks, currentX + iconSize - 4, startY + iconSize);
+                            ctx.fillText(effect.stacks, currentX + iconSize - 4, startY + iconSize);
+                        }
+
+                        currentX += iconSize + spacing + (effect.stacks > 1 ? 8 : 0);
+                    }
+                });
             }
         } else {
             super.draw(ctx);
@@ -263,11 +293,8 @@ export class Chest extends Entity {
         super(game, x, y, 30, 30, '#ffd700', 1); // Gold color
         this.opened = false;
 
-        this.imageClosed = new Image();
-        this.imageClosed.src = 'assets/chest_closed.png';
-
-        this.imageOpen = new Image();
-        this.imageOpen.src = 'assets/chest_open.png';
+        this.imageClosed = getCachedImage('assets/chest_closed.png');
+        this.imageOpen = getCachedImage('assets/chest_open.png');
     }
 
     update(dt) {
@@ -332,8 +359,7 @@ export class DropItem extends Entity {
         this.deceleration = 400; // Linear deceleration
 
         // Visuals
-        this.image = new Image();
-        this.image.src = 'assets/aether_shard.png';
+        this.image = getCachedImage('assets/aether_shard.png');
 
         // Magnet
         this.magnetRange = 150;
@@ -460,8 +486,7 @@ export class Statue extends Entity {
         // Resize to 3x (120x120) and center (offset by -40, -40 relative to a 40x40 center)
         super(game, x - 40, y - 40, 120, 120, '#ffffff', 1);
         this.used = false;
-        this.image = new Image();
-        this.image.src = 'assets/statue_angel.png'; // Assuming this asset
+        this.image = getCachedImage('assets/statue_angel.png');
         this.showPrompt = false;
     }
 

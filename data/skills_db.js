@@ -25,6 +25,8 @@ export const skillsDB = [
             trailColor: 'rgba(255, 100, 0, 0.5)',
             damageColor: '#ff6600',
             knockback: 50, // Slight push
+            statusEffect: 'burn',
+            statusChance: 0.2,
             aetherCharge: 2.7 // Calculated: 5.0 / (1.5 hits / 0.8s)
         }
     },
@@ -51,6 +53,33 @@ export const skillsDB = [
             aetherCharge: 2.0 // Calculated: 5.0 / (1 hit / 0.4s)
         }
     },
+    {
+        id: 'crimson_cross',
+        name: 'クリムゾン・クロス', // Crimson Cross
+        type: 'normal',
+        icon: 'assets/icon_blood_scythe.png',
+        cooldown: 0.2,
+        behavior: 'crimson_cross',
+        description: '前方に十文字の斬撃を放ち、敵を出血させる。',
+        params: {
+            damage: 5,
+            speed: 0,
+            life: 0.2, // Adjusted to 0.2s
+            width: 120, // Match visual span/thickness better
+            height: 120, // Match visual span/thickness better
+            forwardOffset: 35, // Centered better on player
+            shape: 'slash',
+            color: '#800000', // Deep Dark Red
+            trailColor: 'rgba(128, 0, 0, 0.4)',
+            damageColor: '#cc0000', // Brighter Blood Red for visibility
+            statusEffect: 'bleed',
+            statusChance: 0.4,
+            pierce: 999, // Allow hitting multiple enemies in the X
+            ignoreWallDestruction: true, // Don't vanish on walls
+            aetherCharge: 2.0
+        }
+    },
+
     {
         id: 'ice_signal',
         name: 'アイスシグナル', // Ice Signal
@@ -138,6 +167,8 @@ export const skillsDB = [
             minSize: 48, // Uncharged (Small)
             maxSize: 128, // Fully Charged (Large) (64*2)
             maxSpeed: 700,
+            statusEffect: 'burn',
+            statusChance: 0.5,
             aetherCharge: 5.0 // Calculated: 5.0 / (1 hit / 1.0s)
         }
     },
@@ -230,6 +261,8 @@ export const skillsDB = [
             spriteData: 'assets/fireball_sheet.json',
             frames: 4,
             frameRate: 0.1,
+            statusEffect: 'burn',
+            statusChance: 0.3,
             aetherCharge: 3.0 // Ultimate (Normal Mode Gain)
         }
     },
@@ -385,19 +418,19 @@ export const skillsDB = [
             damage: 20, // High single hit
             count: 5, // Total bolts to drop
             damageColor: '#ffff00', // Yellow
-            aetherCharge: 5.0 // Ultimate (Normal Mode Gain)
+            aetherCharge: 0 // Ultimate (No gain)
         }
     },
     {
         id: 'glacial_lotus',
         name: 'グラシアル・ロータス', // Glacial Lotus
         type: 'ultimate',
-        icon: 'assets/icon_ice.png', // Temporary
+        icon: 'assets/icon_glacial_lotus.png',
         cooldown: 15.0,
         behavior: 'glacial_lotus',
         description: '周囲に巨大な氷の蓮を展開し、一斉に射出する奥義。',
         params: {
-            damage: 30, // High burst damage
+            damage: 15, // Reduced for balance with pierce/scatter
             petalCount: 16, // Number of petals
             bloomRadius: 60,
             bloomDuration: 0.8, // Time until burst
@@ -407,7 +440,33 @@ export const skillsDB = [
             height: 60,
             spriteSheet: 'assets/ice_spike.png',
             damageColor: '#00ffff', // Cyan (Ice)
-            aetherCharge: 5.0 // Ultimate (Normal Mode Gain)
+            fixedOrientation: true,
+            rotationOffset: Math.PI / 2,
+            aetherCharge: 0 // Ultimate (No gain)
+        }
+    },
+    {
+        id: 'lunatic_snicker',
+        name: 'ルナティックスニッカー', // Lunatic Snicker
+        type: 'ultimate',
+        icon: 'assets/icon_blood_scythe.png', // Temporary, same as crimson_cross
+        cooldown: 15.0,
+        behavior: 'lunatic_snicker_strike',
+        description: '画面内の全ての敵をターゲットし、狂気の如き深紅の十文字を刻み込む奥義。',
+        params: {
+            damage: 25,
+            life: 0.3, // Slightly longer than normal for impact
+            width: 140, // Larger than normal
+            height: 140,
+            shape: 'slash',
+            color: '#800000', // Deep Dark Red
+            trailColor: 'rgba(128, 0, 0, 0.5)',
+            damageColor: '#cc0000', // Brighter Blood Red
+            statusEffect: 'bleed',
+            statusChance: 1.0, // Guaranteed bleed per hit
+            pierce: 999,
+            ignoreWallDestruction: true,
+            aetherCharge: 0 // Ultimate (No gain)
         }
     }
 ];

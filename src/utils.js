@@ -41,6 +41,15 @@ export class InputHandler {
     update() { this.pressed = {}; }
 }
 
+export const getCachedImage = (src) => {
+    if (!window.imageCache) window.imageCache = {};
+    if (window.imageCache[src]) return window.imageCache[src];
+    const img = new Image();
+    img.src = src;
+    window.imageCache[src] = img;
+    return img;
+};
+
 export class Camera {
     constructor(width, height, mapWidth, mapHeight) {
         this.width = width;

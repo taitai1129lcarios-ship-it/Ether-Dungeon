@@ -14,6 +14,10 @@ const _debugLog = (msg) => {
 
 _debugLog("Script loaded");
 
+// Cached visuals for memory optimization
+const SLASH_PATH_DATA = "M130.46,271.33c-25.21,9.4-54.77,3.01-76.26-13.02-22.49-16.38-37.73-41.21-46.03-67.37C-6.56,143.72-1.7,89.69,25.43,47.81,47.86,13.02,89.47-10.3,130.46,4.56c0,0,0,1,0,1-7.79,3.04-14.94,6.23-21.35,10.06-42.26,24.78-54.05,76.64-54.67,122.33.33,38.82,8.62,81.7,37.57,109.75,10.75,10.21,23.94,17.24,38.45,22.64,0,0,0,1,0,1h0Z";
+const SLASH_PATH = new Path2D(SLASH_PATH_DATA);
+
 // Enemy class moved to entities.js
 class Game {
     constructor() {
@@ -582,6 +586,11 @@ class Game {
                     if (p.onHitEnemy) {
                         p.onHitEnemy(e, this, dt);
                     } else {
+                        // Prevent multi-hits per enemy
+                        p.hitPool = p.hitPool || new Set();
+                        if (p.hitPool.has(e)) return;
+                        p.hitPool.add(e);
+
                         e.takeDamage(p.damage, p.damageColor, p.aetherCharge);
 
                         // Apply Status (Standard Projectiles)
@@ -591,7 +600,11 @@ class Game {
                             }
                         }
 
-                        p.life = 0; // Destroy projectile
+                        if (!p.pierce || p.pierce <= 1) {
+                            p.life = 0; // Destroy projectile
+                        } else {
+                            if (typeof p.pierce === 'number') p.pierce--;
+                        }
                         this.spawnParticles(p.x, p.y, 8, 'orange');
                     }
                 }
@@ -845,9 +858,9 @@ class Game {
                     this.ctx.rotate(angle);
 
                     // Dimensions
-                    // Size reduced by 30% (3.0 -> 2.1), then stretched horizontally
-                    const span = Math.max(p.h, 40) * 2.1;
-                    const thickness = Math.max(p.w, 10) * 3.5; // Stretched width
+                    // Size: Use aggressive scaling for small slashes, modest scaling for large ones
+                    const span = p.h > 40 ? p.h * 1.1 : Math.max(p.h, 20) * 2.1;
+                    const thickness = p.w > 20 ? p.w * 1.1 : Math.max(p.w, 10) * 3.5;
 
                     // Animation Progress
                     const maxLife = p.maxLife || 0.3;
@@ -867,20 +880,20 @@ class Game {
                     const gStart = currentCenter - bandWidth / 2;
                     const gEnd = currentCenter + bandWidth / 2;
 
+                    const color = p.color || '#ffffff';
+                    const isHex = color.startsWith('#');
+                    const transparentColor = isHex ? color + '00' : 'rgba(255,255,255,0)';
+                    const peakColor = isHex ? color + 'ff' : color;
+
                     const grad = this.ctx.createLinearGradient(0, gStart, 0, gEnd);
-                    grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-                    grad.addColorStop(0.2, 'rgba(255, 255, 255, 0.1)');
-                    grad.addColorStop(0.5, 'rgba(255, 255, 255, 1.0)'); // Peak opacity
-                    grad.addColorStop(0.8, 'rgba(255, 255, 255, 0.1)');
-                    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    grad.addColorStop(0, transparentColor);
+                    grad.addColorStop(0.2, isHex ? color + '33' : transparentColor);
+                    grad.addColorStop(0.5, peakColor); // Peak opacity
+                    grad.addColorStop(0.8, isHex ? color + '33' : transparentColor);
+                    grad.addColorStop(1, transparentColor);
 
                     this.ctx.fillStyle = grad;
 
-                    // Custom SVG Path for Slash
-                    // Path Data from User
-                    const pathData = "M130.46,271.33c-25.21,9.4-54.77,3.01-76.26-13.02-22.49-16.38-37.73-41.21-46.03-67.37C-6.56,143.72-1.7,89.69,25.43,47.81,47.86,13.02,89.47-10.3,130.46,4.56c0,0,0,1,0,1-7.79,3.04-14.94,6.23-21.35,10.06-42.26,24.78-54.05,76.64-54.67,122.33.33,38.82,8.62,81.7,37.57,109.75,10.75,10.21,23.94,17.24,38.45,22.64,0,0,0,1,0,1h0Z";
-
-                    const p2d = new Path2D(pathData);
 
                     // SVG dimensions (approx based on coords) are roughly 130x272
                     // We need to scale this to fit our projectile dimensions (thickness x span)
@@ -899,7 +912,7 @@ class Game {
                     this.ctx.scale(scaleX, scaleY);
                     this.ctx.translate(-65, -135); // Center the shape
 
-                    this.ctx.fill(p2d);
+                    this.ctx.fill(SLASH_PATH);
                     this.ctx.restore();
 
                     this.ctx.restore();
@@ -1101,6 +1114,10 @@ class Game {
                     trailEnd = currentAngle + trailLength;
                 }
 
+                const color = a.color || '#ffffff';
+                const isHex = color.startsWith('#');
+                const transparentColor = isHex ? color + '00' : 'rgba(255,255,255,0)';
+
                 // Calculate gradient points
                 const startX = a.x + Math.cos(trailStart) * a.radius;
                 const startY = a.y + Math.sin(trailStart) * a.radius;
@@ -1108,8 +1125,8 @@ class Game {
                 const endY = a.y + Math.sin(trailEnd) * a.radius;
 
                 const grad = this.ctx.createLinearGradient(startX, startY, endX, endY);
-                grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-                grad.addColorStop(1, a.color);
+                grad.addColorStop(0, transparentColor);
+                grad.addColorStop(1, color);
 
                 // Main Blade
                 this.ctx.strokeStyle = grad;
@@ -1118,7 +1135,7 @@ class Game {
                 this.ctx.arc(a.x, a.y, a.radius, trailStart, trailEnd);
                 this.ctx.stroke();
 
-                this.ctx.strokeStyle = 'rgba(200, 255, 255, 0.8)';
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'; // Universal highlight
                 this.ctx.lineWidth = 2;
                 this.ctx.beginPath();
                 this.ctx.arc(a.x, a.y, a.radius - 5, trailStart + 0.1, trailEnd - 0.1);

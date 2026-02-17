@@ -1,4 +1,6 @@
 
+import { getCachedImage } from './utils.js';
+
 export class Map {
     constructor(width, height, tileSize) {
         this.width = width;
@@ -8,10 +10,8 @@ export class Map {
         this.tileSize = tileSize;
         this.tiles = [];
         this.rooms = [];
-        this.wallImage = new Image();
-        this.wallImage.src = 'assets/wall.png';
-        this.stairsImage = new Image();
-        this.stairsImage.src = 'assets/portal_stairs.png';
+        this.wallImage = getCachedImage('assets/wall.png');
+        this.stairsImage = getCachedImage('assets/portal.png');
     }
 
     generate() {
