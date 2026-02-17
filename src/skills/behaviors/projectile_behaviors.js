@@ -228,69 +228,56 @@ export const projectileBehaviors = {
     },
 
     'lunatic_snicker_strike': (user, game, params) => {
-        // Collect all enemies on screen
-        const targets = game.enemies.filter(e =>
-            !e.markedForDeletion &&
-            game.camera.isVisible(e.x, e.y, e.width, e.height)
-        );
-
-        if (targets.length === 0) return;
-
         // Visual Impact: Initial Shake
         game.camera.shake(0.4, 8);
 
         // STAGGERED EXECUTION
-        const delayPerStrike = 0.05;
-        let cumulativeDelay = 0;
+        const strikeCount = user.isAetherRush ? 30 : 15;
+        const radius = 250;
+        const delayPerStrike = 0.03;
 
-        // In Rush: Hit everyone multiple times
-        const hitsPerEnemy = user.isAetherRush ? 3 : 1;
+        for (let i = 0; i < strikeCount; i++) {
+            const strikeDelay = i * delayPerStrike;
 
-        targets.forEach((target) => {
-            for (let h = 0; h < hitsPerEnemy; h++) {
-                const strikeDelay = cumulativeDelay + (h * 0.1);
+            game.animations.push({
+                type: 'logic',
+                life: strikeDelay + 0.01,
+                timer: strikeDelay,
+                update: function (dt) {
+                    this.timer -= dt;
+                    if (this.timer <= 0 && !this.executed) {
+                        this.executed = true;
 
-                game.animations.push({
-                    type: 'logic',
-                    life: strikeDelay + 0.01, // Short logic life
-                    timer: strikeDelay,
-                    update: function (dt) {
-                        this.timer -= dt;
-                        if (this.timer <= 0 && !this.executed) {
-                            this.executed = true;
-                            // EXECUTE X-SLASH on target
-                            if (target && !target.markedForDeletion) {
-                                const spawnX = target.x + target.width / 2;
-                                const spawnY = target.y + target.height / 2;
-                                // Random base rotation for each strike to make it look "crazy"
-                                const baseRotation = Math.random() * Math.PI * 2;
+                        // Random position in radius around player
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = Math.random() * radius;
+                        const spawnX = (user.x + user.width / 2) + Math.cos(angle) * dist;
+                        const spawnY = (user.y + user.height / 2) + Math.sin(angle) * dist;
 
-                                // Slash 1
-                                spawnProjectile(game, spawnX, spawnY, 0, 0, {
-                                    ...params,
-                                    rotation: baseRotation + Math.PI / 4,
-                                    fixedOrientation: true,
-                                    noShake: true
-                                });
-                                // Slash 2 (Internal delay)
-                                spawnProjectile(game, spawnX, spawnY, 0, 0, {
-                                    ...params,
-                                    rotation: baseRotation - Math.PI / 4,
-                                    fixedOrientation: true,
-                                    noShake: true,
-                                    startDelay: 0.05 // Faster delay for ultimate
-                                });
+                        const baseRotation = Math.random() * Math.PI * 2;
 
-                                // Extra particle burst
-                                game.spawnParticles(spawnX, spawnY, 10, params.damageColor);
-                            }
-                        }
+                        // Slash 1
+                        spawnProjectile(game, spawnX, spawnY, 0, 0, {
+                            ...params,
+                            rotation: baseRotation + Math.PI / 4,
+                            fixedOrientation: true,
+                            noShake: true
+                        });
+                        // Slash 2 (Internal delay)
+                        spawnProjectile(game, spawnX, spawnY, 0, 0, {
+                            ...params,
+                            rotation: baseRotation - Math.PI / 4,
+                            fixedOrientation: true,
+                            noShake: true,
+                            startDelay: 0.05
+                        });
+
+                        // Extra particle burst
+                        game.spawnParticles(spawnX, spawnY, 10, params.damageColor);
                     }
-                });
-
-                cumulativeDelay += delayPerStrike;
-            }
-        });
+                }
+            });
+        }
     },
 
     'bouncing_projectile': (user, game, params) => {
