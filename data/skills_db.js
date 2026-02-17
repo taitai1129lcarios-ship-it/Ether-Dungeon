@@ -291,7 +291,6 @@ export const skillsDB = [
             pierce: 999, // Infinite pierce
             tickInterval: 0.1, // Damage every 0.1s
             statusEffect: 'bleed',
-            statusEffect: 'bleed',
             statusChance: 0.3, // 30% chance per tick
             damageColor: '#880000', // Dark Red (Blood)
             aetherCharge: 2.0 // Calculated: 5.0 / (5 ticks / 2.0s)

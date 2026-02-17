@@ -1,6 +1,7 @@
 import { Entity, getCachedImage } from './utils.js';
 import { SkillType, spawnAetherExplosion } from './skills/index.js';
 import { StatusManager } from './status_effects.js';
+import { skillsDB } from '../data/skills_db.js';
 
 const textures = {
     slime: 'assets/slime.png',
