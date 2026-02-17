@@ -186,24 +186,13 @@ export class Goblin extends Enemy {
             color: 'rgba(255, 255, 255, 0.8)'
         });
 
-        // 2. Ground Crack Effect (Stable Jagged Lines)
+        // 2. Ground Crack Effect (Dynamic/Flickering as per user request)
         const crackCount = 8;
         const cracks = [];
         for (let i = 0; i < crackCount; i++) {
             const angle = (i / crackCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
             const length = attackRadius * (0.8 + Math.random() * 0.4);
-            const segments = [];
-            let lastX = 0;
-            let lastY = 0;
-            const segmentCount = 3;
-            for (let s = 1; s <= segmentCount; s++) {
-                const dist = (length / segmentCount) * s;
-                const jitter = (Math.random() - 0.5) * 20;
-                const tx = Math.cos(angle) * dist + Math.cos(angle + Math.PI / 2) * jitter;
-                const ty = Math.sin(angle) * dist + Math.sin(angle + Math.PI / 2) * jitter;
-                segments.push({ x: tx, y: ty });
-            }
-            cracks.push({ segments });
+            cracks.push({ angle, length });
         }
 
         this.game.animations.push({
@@ -223,9 +212,15 @@ export class Goblin extends Enemy {
                 this.cracks.forEach(c => {
                     ctx.beginPath();
                     ctx.moveTo(this.x, this.y);
-                    c.segments.forEach(seg => {
-                        ctx.lineTo(this.x + seg.x, this.y + seg.y);
-                    });
+                    // Draw jagged line (randomized every frame)
+                    const segments = 3;
+                    for (let s = 1; s <= segments; s++) {
+                        const dist = (c.length / segments) * s;
+                        const jitter = (Math.random() - 0.5) * 20;
+                        const targetX = this.x + Math.cos(c.angle) * dist + Math.cos(c.angle + Math.PI / 2) * jitter;
+                        const targetY = this.y + Math.sin(c.angle) * dist + Math.sin(c.angle + Math.PI / 2) * jitter;
+                        ctx.lineTo(targetX, targetY);
+                    }
                     ctx.stroke();
                 });
                 ctx.restore();
