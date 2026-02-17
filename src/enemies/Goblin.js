@@ -166,34 +166,114 @@ export class Goblin extends Enemy {
         // Show attack image for 0.3 seconds
         this.attackImageTimer = 0.3;
 
+        // More intense camera shake
+        this.game.camera.shake(0.4, 25);
+
         if (dist < attackRadius) {
             this.game.player.takeDamage(20);
-            this.game.camera.shake(0.3, 10);
         }
 
-        // Shockwave Visual Effect (Multiple Rings)
-        for (let i = 0; i < 3; i++) {
+        // 1. Grand White Shockwaves
+        for (let i = 0; i < 4; i++) {
             this.game.animations.push({
-                type: 'circle',
+                type: 'custom',
                 x: goblinCenterX,
                 y: goblinCenterY,
                 radius: 10,
-                targetRadius: attackRadius * (1 - i * 0.2),
-                color: `rgba(255, 100, 0, ${0.4 - i * 0.1})`,
-                life: 0.4 + i * 0.1,
-                maxLife: 0.4 + i * 0.1,
+                targetRadius: attackRadius * (1.2 + i * 0.3),
+                color: 'rgba(255, 255, 255, 0.8)',
+                life: 0.5 + i * 0.1,
+                maxLife: 0.5 + i * 0.1,
                 update: function (dt) {
                     this.life -= dt;
+                },
+                draw: function (ctx) {
                     const p = 1 - (this.life / this.maxLife);
-                    this.currentRadius = this.radius + (this.targetRadius - this.radius) * p;
+                    const currentRadius = this.radius + (this.targetRadius - this.radius) * Math.pow(p, 0.5);
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, currentRadius, 0, Math.PI * 2);
+                    ctx.strokeStyle = this.color;
+                    ctx.globalAlpha = (this.life / this.maxLife);
+                    ctx.lineWidth = 6 * (this.life / this.maxLife);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            });
+        }
+
+        // 2. Ground Crack Effect
+        const crackCount = 8;
+        const cracks = [];
+        for (let i = 0; i < crackCount; i++) {
+            const angle = (i / crackCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+            const length = attackRadius * (0.8 + Math.random() * 0.4);
+            cracks.push({ angle, length });
+        }
+
+        this.game.animations.push({
+            type: 'custom',
+            x: goblinCenterX,
+            y: goblinCenterY,
+            cracks: cracks,
+            life: 2.0,
+            maxLife: 2.0,
+            update: function (dt) { this.life -= dt; },
+            draw: function (ctx) {
+                ctx.save();
+                ctx.strokeStyle = '#443322'; // Dark floor crack color
+                ctx.lineWidth = 3 * (this.life / this.maxLife);
+                ctx.globalAlpha = Math.min(1.0, this.life);
+
+                this.cracks.forEach(c => {
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    // Draw jagged line
+                    let curX = this.x;
+                    let curY = this.y;
+                    const segments = 3;
+                    for (let s = 1; s <= segments; s++) {
+                        const dist = (c.length / segments) * s;
+                        const jitter = (Math.random() - 0.5) * 20;
+                        const targetX = this.x + Math.cos(c.angle) * dist + Math.cos(c.angle + Math.PI / 2) * jitter;
+                        const targetY = this.y + Math.sin(c.angle) * dist + Math.sin(c.angle + Math.PI / 2) * jitter;
+                        ctx.lineTo(targetX, targetY);
+                    }
+                    ctx.stroke();
+                });
+                ctx.restore();
+            }
+        });
+
+        // 3. Dust Particles
+        for (let i = 0; i < 20; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 50 + Math.random() * 150;
+            const dist = Math.random() * 20;
+            this.game.animations.push({
+                type: 'dust',
+                x: goblinCenterX + Math.cos(angle) * dist,
+                y: goblinCenterY + Math.sin(angle) * dist,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                radius: 2 + Math.random() * 4,
+                life: 0.5 + Math.random() * 0.5,
+                maxLife: 0.5 + Math.random() * 0.5,
+                color: '#887766',
+                update: function (dt) {
+                    this.life -= dt;
+                    this.x += this.vx * dt;
+                    this.y += this.vy * dt;
+                    this.vx *= 0.95;
+                    this.vy *= 0.95;
                 },
                 draw: function (ctx) {
                     ctx.save();
+                    ctx.globalAlpha = this.life / this.maxLife;
+                    ctx.fillStyle = this.color;
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.currentRadius, 0, Math.PI * 2);
-                    ctx.strokeStyle = this.color;
-                    ctx.lineWidth = 4 * (this.life / this.maxLife);
-                    ctx.stroke();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
                     ctx.restore();
                 }
             });
