@@ -68,6 +68,8 @@ export const spawnProjectile = (game, x, y, vx, vy, params) => {
         ghostLife: params.ghostLife,
         ghostFilter: params.ghostFilter,
         trailColor: params.trailColor,
+        critChance: params.critChance || 0,
+        critMultiplier: params.critMultiplier || 2.0,
         update: function (dt) {
             this.vx += (this.ax || 0) * dt;
             this.vy += (this.ay || 0) * dt;

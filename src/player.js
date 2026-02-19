@@ -32,6 +32,9 @@ export class Player extends Entity {
         this.maxChargeTime = 0;
         this.isCharging = false;
 
+        this.scale = 1.0;
+        this.alpha = 1.0;
+
         this.image = new Image();
         this.image.src = 'assets/player_sprites.png';
         this.image.onload = () => {
@@ -83,6 +86,39 @@ export class Player extends Entity {
                 console.log('Player sprite data loaded:', this.spriteData);
             })
             .catch(err => console.error('Failed to load sprite JSON:', err));
+
+        this.bloodBlessings = [];
+    }
+
+    get damageMultiplier() {
+        let mult = 1.0;
+        if (this.bloodBlessings) {
+            this.bloodBlessings.forEach(b => {
+                if (b.buff && b.buff.damageMult) mult *= b.buff.damageMult;
+            });
+        }
+        if (this.isAetherRush) mult *= 1.2;
+        return mult;
+    }
+
+    get actualSpeed() {
+        let mult = 1.0;
+        if (this.bloodBlessings) {
+            this.bloodBlessings.forEach(b => {
+                if (b.buff && b.buff.speedMult) mult *= b.buff.speedMult;
+            });
+        }
+        return 250 * mult;
+    }
+
+    get aetherMultiplier() {
+        let mult = 1.0;
+        if (this.bloodBlessings) {
+            this.bloodBlessings.forEach(b => {
+                if (b.buff && b.buff.aetherGainMult) mult *= b.buff.aetherGainMult;
+            });
+        }
+        return mult;
     }
 
     addCurrency(amount) {
@@ -118,27 +154,37 @@ export class Player extends Entity {
             this.vx = this.dashVx;
             this.vy = this.dashVy;
             moving = true; // Still animate walking/dashing
+
+            // dt-based dash timer (respects timeScale / slow motion)
+            this.dashElapsed = (this.dashElapsed || 0) + dt;
+            if (this.dashElapsed >= this.dashDuration) {
+                this.isDashing = false;
+                this.dashVx = 0;
+                this.dashVy = 0;
+                this.dashElapsed = 0;
+            }
         } else if (this.isCasting) {
             // Block movement input
             moving = false;
         } else {
+            const speed = this.actualSpeed;
             if (this.game.input.isDown('ArrowUp') || this.game.input.isDown('KeyW')) {
-                this.vy = -this.speed;
+                this.vy = -speed;
                 this.facing = 'up';
                 moving = true;
             }
             if (this.game.input.isDown('ArrowDown') || this.game.input.isDown('KeyS')) {
-                this.vy = this.speed;
+                this.vy = speed;
                 this.facing = 'down';
                 moving = true;
             }
             if (this.game.input.isDown('ArrowLeft') || this.game.input.isDown('KeyA')) {
-                this.vx = -this.speed;
+                this.vx = -speed;
                 this.facing = 'left';
                 moving = true;
             }
             if (this.game.input.isDown('ArrowRight') || this.game.input.isDown('KeyD')) {
-                this.vx = this.speed;
+                this.vx = speed;
                 this.facing = 'right';
                 moving = true;
             }
@@ -292,6 +338,10 @@ export class Player extends Entity {
                         this.startCharge(map.slot, skill);
                         chargeInputDetected = true;
                     } else if (this.game.input.isDown(map.key)) { // Use isDown for continuous fire (auto-fire on cooldown)
+                        // Prevent Normal Attack while interacting
+                        if (map.slot === SkillType.NORMAL && this.game.isInteracting) {
+                            continue;
+                        }
                         this.useSkill(map.slot);
                     }
                 }
@@ -428,24 +478,20 @@ export class Player extends Entity {
                 const drawHeight = drawWidth / ratio;
 
                 // Anchor to Bottom Center of collision box
-                const drawX = this.x + (this.width - drawWidth) / 2;
-                const drawY = this.y + this.height - drawHeight;
+                const drawX = (this.width - drawWidth) / 2;
+                const drawY = this.height - drawHeight;
 
-                /*
-                if (Math.random() < 0.01) {
-                    console.log('Drawing Player:', { 
-                        idx: frameIndex, 
-                        fx: frameData.x, fy: frameData.y, fw: frameData.w, fh: frameData.h,
-                        dx: drawX, dy: drawY, dw: drawWidth, dh: drawHeight
-                    });
-                }
-                */
+                ctx.save();
+                ctx.globalAlpha *= this.alpha;
+                ctx.translate(Math.floor(this.x + this.width / 2), Math.floor(this.y + this.height));
+                ctx.scale(this.scale, this.scale);
 
                 ctx.drawImage(
                     this.image,
                     frameData.x, frameData.y, frameData.w, frameData.h, // Source from JSON
-                    Math.floor(drawX), Math.floor(drawY), Math.floor(drawWidth), Math.floor(drawHeight) // Destination
+                    Math.floor(drawX - this.width / 2), Math.floor(drawY - this.height), Math.floor(drawWidth), Math.floor(drawHeight) // Destination
                 );
+                ctx.restore();
             } else {
                 console.warn('Missing frame data for index:', frameIndex);
                 super.draw(ctx); // Fallback
@@ -539,17 +585,13 @@ export class Player extends Entity {
             }
         });
 
-        // End Dash
-        setTimeout(() => {
-            this.isDashing = false;
-            this.dashVx = 0;
-            this.dashVy = 0;
-        }, this.dashDuration * 1000);
+        // End Dash: use dt-based timer instead of setTimeout so it respects timeScale
+        this.dashElapsed = 0;
     }
 
     addAether(amount) {
         if (this.isAetherRush) return; // Don't gain while active
-        this.aetherGauge += amount;
+        this.aetherGauge += amount * this.aetherMultiplier;
         if (this.aetherGauge >= this.maxAetherGauge) {
             this.aetherGauge = this.maxAetherGauge;
             this.triggerAetherRush();

@@ -27,16 +27,34 @@ export class Goblin extends Enemy {
         });
 
         this.stunTimer = 0;
+        this.damage = 0; // Remove contact damage
     }
 
     update(dt) {
+        if (this.isSpawning) {
+            super.update(dt);
+            return;
+        }
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
         if (this.attackImageTimer > 0) this.attackImageTimer -= dt;
+        // If stunned, temporarily set speed to 0 so BaseEnemy AI doesn't move
+        const originalSpeed = this.speed;
         if (this.stunTimer > 0) {
             this.stunTimer -= dt;
-            this.vx = 0;
-            this.vy = 0;
+            this.speed = 0;
         }
+
+        // If not telegraphing and cooldown is off, check for heavy strike
+        // Removed !this.flashTimer check so attacks can start/continue while being hit
+        if (!this.isTelegraphing && this.stunTimer <= 0 && this.attackCooldown <= 0) {
+            const dist = Math.sqrt((this.game.player.x - this.x) ** 2 + (this.game.player.y - this.y) ** 2);
+            if (dist < 100) {
+                this.startTelegraph(1.6);
+            }
+        }
+
+        super.update(dt);
+        this.speed = originalSpeed;
 
         // Advance animation if moving
         if (!this.isTelegraphing && (Math.abs(this.vx) > 0.1 || Math.abs(this.vy) > 0.1)) {
@@ -44,19 +62,10 @@ export class Goblin extends Enemy {
         } else {
             this.animTimer = 0;
         }
-
-        // If not telegraphing and cooldown is off, check for heavy strike
-        if (!this.isTelegraphing && !this.flashTimer && this.attackCooldown <= 0) {
-            const dist = Math.sqrt((this.game.player.x - this.x) ** 2 + (this.game.player.y - this.y) ** 2);
-            if (dist < 100) {
-                this.startTelegraph(1.2);
-            }
-        }
-
-        super.update(dt);
     }
 
     draw(ctx) {
+        ctx.save();
         // Selection of image based on state
         let currentImg = this.imgNormal;
         let frameRect = null;
@@ -72,6 +81,23 @@ export class Goblin extends Enemy {
         }
 
         this.image = currentImg;
+
+        // Shadow and Spawning Effect
+        const spawnProgress = this.isSpawning ? (1 - (this.spawnTimer / this.spawnDuration)) : 1.0;
+        const shadowAlpha = 0.3 * spawnProgress;
+        ctx.save();
+        ctx.translate(this.x + this.width / 2, this.y + this.height);
+        ctx.scale(1, 0.5); // Oval
+        ctx.fillStyle = 'rgba(0, 0, 0, ' + shadowAlpha + ')';
+        ctx.beginPath();
+        const shadowRadius = (this.width / 2) * (this.isSpawning ? (0.5 + 0.5 * spawnProgress) : 1);
+        ctx.arc(0, 0, shadowRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        if (this.isSpawning) {
+            ctx.globalAlpha = spawnProgress;
+        }
 
         if (frameRect && currentImg.complete) {
             ctx.save();
@@ -94,10 +120,7 @@ export class Goblin extends Enemy {
                 -this.width / 2, -this.height, this.width, this.height
             );
             ctx.restore();
-
-            // Draw extra UI like telegraph circles or HP bars
-            this.drawUI(ctx);
-        } else {
+        } else if (currentImg.complete) {
             // Fallback to base drawing for single images
             ctx.save();
             const faceLeft = this.game.player.x < this.x;
@@ -118,10 +141,12 @@ export class Goblin extends Enemy {
 
             ctx.drawImage(this.image, -drawWidth / 2, -drawHeight, drawWidth, drawHeight);
             ctx.restore();
-
-            // Draw extra UI
-            this.drawUI(ctx);
         }
+
+        ctx.restore(); // Restore main draw save
+
+        // Draw extra UI like telegraph circles or HP bars
+        this.drawUI(ctx);
     }
 
     // Helper to draw UI elements since we are overriding draw
@@ -152,6 +177,8 @@ export class Goblin extends Enemy {
             ctx.fillStyle = 'green';
             ctx.fillRect(Math.floor(this.x), Math.floor(this.y - 6), this.width * (this.hp / this.maxHp), 4);
         }
+
+        this.drawStatusIcons(ctx);
     }
 
     executeAttack() {
@@ -167,7 +194,7 @@ export class Goblin extends Enemy {
         this.attackImageTimer = 0.3;
 
         // More intense camera shake
-        this.game.camera.shake(0.4, 25);
+        this.game.camera.shake(0.2, 12);
 
         if (dist < attackRadius) {
             this.game.player.takeDamage(20);
@@ -181,8 +208,8 @@ export class Goblin extends Enemy {
             radius: 10,
             maxRadius: attackRadius * 1.5,
             width: 40,
-            life: 0.6,
-            maxLife: 0.6,
+            life: 0.3,
+            maxLife: 0.3,
             color: 'rgba(255, 255, 255, 0.8)'
         });
 
@@ -197,6 +224,7 @@ export class Goblin extends Enemy {
 
         this.game.animations.push({
             type: 'custom',
+            layer: 'bottom', // Draw behind entities
             x: goblinCenterX,
             y: goblinCenterY,
             cracks: cracks,
@@ -206,22 +234,33 @@ export class Goblin extends Enemy {
             draw: function (ctx) {
                 ctx.save();
                 ctx.strokeStyle = '#443322'; // Dark floor crack color
-                ctx.lineWidth = 3 * (this.life / this.maxLife);
                 ctx.globalAlpha = Math.min(1.0, this.life);
 
+                const lifeMult = (this.life / this.maxLife);
+
                 this.cracks.forEach(c => {
-                    ctx.beginPath();
-                    ctx.moveTo(this.x, this.y);
-                    // Draw jagged line (randomized every frame)
-                    const segments = 3;
+                    let lastX = this.x;
+                    let lastY = this.y;
+
+                    const segments = 5; // More segments for smoother tapering
                     for (let s = 1; s <= segments; s++) {
-                        const dist = (c.length / segments) * s;
-                        const jitter = (Math.random() - 0.5) * 20;
+                        const distProgress = s / segments;
+                        const dist = c.length * distProgress;
+                        const jitter = (Math.random() - 0.5) * 15;
                         const targetX = this.x + Math.cos(c.angle) * dist + Math.cos(c.angle + Math.PI / 2) * jitter;
                         const targetY = this.y + Math.sin(c.angle) * dist + Math.sin(c.angle + Math.PI / 2) * jitter;
+
+                        // Taper: thick at start (progress=0), thin at end (progress=1)
+                        ctx.lineWidth = Math.max(0.5, (6 * (1 - distProgress * 0.8)) * lifeMult);
+
+                        ctx.beginPath();
+                        ctx.moveTo(lastX, lastY);
                         ctx.lineTo(targetX, targetY);
+                        ctx.stroke();
+
+                        lastX = targetX;
+                        lastY = targetY;
                     }
-                    ctx.stroke();
                 });
                 ctx.restore();
             }

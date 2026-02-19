@@ -1,8 +1,17 @@
 
 let selectedSkill = null;
 let activeTab = 'all';
+let _inventoryInitialized = false; // Guard against duplicate listener registration
+
+export function resetInventorySelection() {
+    selectedSkill = null;
+}
 
 export function initInventory(game) {
+    // Prevent duplicate event listener registration on floor transitions
+    if (_inventoryInitialized) return;
+    _inventoryInitialized = true;
+
     const invScreen = document.getElementById('inventory-screen');
     const closeBtn = document.getElementById('close-inventory');
 
@@ -237,6 +246,23 @@ export function renderInventory(game) {
 
         grid.appendChild(item);
     });
+
+    // Highlight equippable slots based on selected skill
+    highlightEquippableSlots(selectedSkill);
+}
+
+function highlightEquippableSlots(skill) {
+    document.querySelectorAll('.equip-slot').forEach(slot => {
+        slot.classList.remove('can-equip');
+    });
+    if (!skill) return;
+
+    document.querySelectorAll('.equip-slot').forEach(slot => {
+        const type = slot.dataset.type;
+        const isPrimary = type === 'primary1' || type === 'primary2';
+        const matches = isPrimary ? skill.type === 'primary' : skill.type === type;
+        if (matches) slot.classList.add('can-equip');
+    });
 }
 
 function updateDetailPanel(skill) {
@@ -263,11 +289,36 @@ function updateDetailPanel(skill) {
     let infoHtml = `タイプ: ${typeMap[skill.type] || skill.type}<br>`;
     infoHtml += `クールダウン: ${skill.cooldown}秒<br>`;
 
-    // Add dmg/speed if available
-    if (skill.params && skill.params.damage) {
-        infoHtml += `威力: ${skill.params.damage}<br>`;
+    const p = skill.params;
+    if (p) {
+        if (p.damage != null)
+            infoHtml += `基礎ダメージ: <b>${p.damage}</b><br>`;
+        if (p.critChance != null)
+            infoHtml += `クリティカル率: <b>${Math.round(p.critChance * 100)}%</b><br>`;
+        if (p.critMultiplier != null)
+            infoHtml += `クリティカル倍率: <b>×${p.critMultiplier.toFixed(1)}</b><br>`;
+        if (p.statusEffect != null) {
+            const chance = p.statusChance != null ? ` (${Math.round(p.statusChance * 100)}%)` : '';
+            const effectMap = { burn: '燃焼', bleed: '出血', slow: '鈍足' };
+            infoHtml += `状態異常: <b>${effectMap[p.statusEffect] || p.statusEffect}${chance}</b><br>`;
+        }
     }
 
     infoEl.innerHTML = infoHtml;
     descEl.textContent = skill.description || '説明がありません。';
+
+    // Aether Rush description (ultimates only)
+    let rushEl = document.getElementById('detail-aether-rush');
+    if (!rushEl) {
+        rushEl = document.createElement('div');
+        rushEl.id = 'detail-aether-rush';
+        rushEl.style.cssText = 'margin-top:8px;font-size:13px;color:#a0e8ff;line-height:1.5;';
+        document.getElementById('skill-detail-panel').appendChild(rushEl);
+    }
+    if (skill.type === 'ultimate' && skill.aetherRushDesc) {
+        rushEl.innerHTML = `<span style="color:#00ccff;font-weight:bold;">エーテルラッシュ時</span><br>${skill.aetherRushDesc}`;
+        rushEl.style.display = 'block';
+    } else {
+        rushEl.style.display = 'none';
+    }
 }

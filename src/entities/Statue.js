@@ -77,7 +77,7 @@ export class Statue extends Entity {
             // 4. Random Skill (Generic)
             choices.push({
                 id: 'random_skill_grant',
-                name: 'ランダムスキル習得',
+                name: 'ランダムスキル\n習得',
                 description: 'ランダムなスキルを1つ習得する。',
                 rarity: 'rare'
             });
@@ -89,7 +89,7 @@ export class Statue extends Entity {
             this.game.gameState = 'REWARD_SELECT';
             ui.showBlessingSelection(options, (selectedOpt) => {
                 this.game.applyReward(selectedOpt);
-            });
+            }, 'angel');
 
             console.log("Statue Interaction: Options showed", options);
 

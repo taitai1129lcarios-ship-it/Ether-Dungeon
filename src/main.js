@@ -1,10 +1,10 @@
 import { InputHandler, Camera, Entity } from './utils.js';
 import { Map } from './map.js';
 import { Player } from './player.js';
-import { Enemy, Slime, Bat, Goblin, SkeletonArcher, Chest, Statue } from './entities.js';
+import { Enemy, Slime, Bat, Goblin, SkeletonArcher, Chest, Statue, BloodAltar } from './entities.js';
 import { createSkill } from './skills/index.js';
 import { drawUI, showSkillSelection, hideSkillSelection, showBlessingSelection, hideBlessingSelection, drawDialogue, hideDialogue, initSettingsUI } from './ui.js';
-import { initInventory, renderInventory } from './inventory.js';
+import { initInventory, renderInventory, resetInventorySelection } from './inventory.js';
 import { skillsDB } from '../data/skills_db.js';
 
 const _debugLog = (msg) => {
@@ -31,6 +31,7 @@ class Game {
         this.gameState = 'PLAYING'; // PLAYING, REWARD_SELECT, GAME_OVER
         this.rewardOptions = null; // Array of 3 options
         this.images = {}; // Asset Check
+        this.currentFloor = 1;
 
         // Transition State
         this.isTransitioning = false;
@@ -63,11 +64,69 @@ class Game {
         }
 
         this.loop = this.loop.bind(this);
+
+        // Responsive Resizing
+        window.addEventListener('resize', () => this.handleResize());
+        this.handleResize(); // Initial call
+
         requestAnimationFrame(this.loop);
         _debugLog("Game Loop Started");
     }
 
-    init() {
+    handleResize() {
+        const maxW = window.innerWidth;
+        const maxH = window.innerHeight;
+
+        // Calculate the largest 16:9 area that fits within the viewport
+        let targetW = maxW;
+        let targetH = targetW * (9 / 16);
+
+        if (targetH > maxH) {
+            targetH = maxH;
+            targetW = targetH * (16 / 9);
+        }
+
+        this.width = targetW;
+        this.height = targetH;
+
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+
+        // Dynamic Zoom to maintain fixed Field of View (FOV)
+        // Base resolution width is 800. 
+        this.zoom = this.width / 800;
+
+        // Re-calculate camera bounds to match the new zoom level
+        if (this.camera) {
+            this.camera.width = this.width / this.zoom;   // Always 800
+            this.camera.height = this.height / this.zoom; // Scales with ratio (450 for 16:9)
+        }
+
+        // --- Scale UI Layer ---
+        const uiLayer = document.getElementById('ui-layer');
+        if (uiLayer) {
+            uiLayer.style.transform = `scale(${this.zoom})`;
+        }
+
+        console.log(`Resized to fit 16:9: ${this.width.toFixed(0)}x${this.height.toFixed(0)}, Zoom: ${this.zoom.toFixed(2)}`);
+    }
+
+
+    get isInteracting() {
+        return this.showStairPrompt ||
+            this.chests.some(c => c.showPrompt) ||
+            this.statues.some(s => s.showPrompt) ||
+            this.bloodAltars.some(a => a.showPrompt);
+    }
+
+    init(isNextFloor = false) {
+        if (!isNextFloor) {
+            this.currentFloor = 1;
+        } else {
+            // Clear stale inventory selection from the previous floor
+            resetInventorySelection();
+        }
+
         // Larger Map: 80x60 tiles (3200x2400 pixels)
         this.map = new Map(80, 60, 40);
         this.map.generate();
@@ -77,8 +136,22 @@ class Game {
 
         const startRoom = this.map.rooms.find(r => r.type === 'start') || this.map.rooms[0];
         console.log("Start Room:", startRoom);
+
+        // Persistence Logic
+        const oldPlayer = this.player;
         if (startRoom) {
             this.player = new Player(this, (startRoom.x + startRoom.w / 2) * 40, (startRoom.y + startRoom.h / 2) * 40);
+            if (isNextFloor && oldPlayer) {
+                // Restore skills and inventory
+                this.player.inventory = oldPlayer.inventory || [];
+                this.player.equippedSkills = oldPlayer.equippedSkills || {};
+                // Restore currency/shards if needed (Player constructor might reset them)
+                this.player.currency = oldPlayer.currency || 0;
+                this.player.hp = oldPlayer.hp;
+                this.player.maxHp = oldPlayer.maxHp;
+                this.player.aether = 0; // Reset aether rush on floor change
+                this.player.bloodBlessings = []; // Clear temporary blessings
+            }
             console.log("Player Spawned at:", this.player.x, this.player.y);
         } else {
             console.error("CRITICAL: No rooms found to spawn player!");
@@ -86,21 +159,30 @@ class Game {
         }
         this.camera.follow(this.player);
 
-        // --- Load Skills from DB ---
-        skillsDB.forEach(skillData => {
-            const skill = createSkill(skillData);
-            if (skill) {
-                this.player.inventory.push(skill);
-                // Auto equip for now based on type (simple logic)
-                if (!this.player.equippedSkills[skill.type]) {
-                    this.player.equipSkill(skill);
+        // --- Load Skills from DB only on fresh start ---
+        if (!isNextFloor) {
+            skillsDB.forEach(skillData => {
+                const skill = createSkill(skillData);
+                if (skill) {
+                    this.player.inventory.push(skill);
+                    // Auto equip for now based on type (simple logic)
+                    if (!this.player.equippedSkills[skill.type]) {
+                        this.player.equipSkill(skill);
+                    }
                 }
-            }
-        });
+            });
+        }
         this.enemies = [];
         this.enemyProjectiles = [];
         this.chests = [];
         this.statues = [];
+        this.bloodAltars = [];
+        this.activeStatue = null;
+        this.activeAltar = null;
+        this.entities = [];
+        this.animations = [];
+        this.projectiles = [];
+        this.isGameOver = false;
 
         for (let i = 0; i < this.map.rooms.length; i++) { // Include room 0 now as it might be treasure
             const room = this.map.rooms[i];
@@ -118,24 +200,30 @@ class Game {
                 this.statues.push(new Statue(this, sx, sy));
                 continue;
             }
+
+            if (room.type === 'altar') {
+                const sx = (room.x + Math.floor(room.w / 2)) * this.map.tileSize;
+                const sy = (room.y + Math.floor(room.h / 2)) * this.map.tileSize;
+                this.bloodAltars.push(new BloodAltar(this, sx, sy));
+                continue;
+            }
         }
 
-        this.statues = this.statues || []; // Ensure initialized
-
-        this.entities = []; // For generic entities like drops
-        this.animations = [];
-        this.projectiles = [];
         this.lastTime = 0;
         this.accumulator = 0;
         this.step = 1 / 60;
-        this.isGameOver = false;
 
         this.uiHp = document.getElementById('hp-value');
         this.uiHpMax = document.getElementById('hp-max');
         this.uiHpBar = document.getElementById('health-bar-fill');
-        this.uiLevel = document.getElementById('level-value');
-
+        this.uiFloorValue = document.getElementById('floor-value');
+        this.lastHp = null;
+        this.lastMaxHp = null;
         this.showInventory = false;
+        if (this.player) {
+            this.player.scale = 1.0;
+            this.player.alpha = 1.0;
+        }
         initInventory(this);
         initSettingsUI(this);
     }
@@ -318,10 +406,49 @@ class Game {
                 this.transitionAlpha = Math.min(1, this.transitionTimer / this.transitionDuration);
                 if (this.transitionTimer >= this.transitionDuration) {
                     // Fade Out Complete -> Next Level
-                    this.init();
+                    this.init(true);
                     this.transitionType = 'fade-in';
                     this.transitionTimer = 0;
                     this.transitionAlpha = 1;
+                }
+            } else if (this.transitionType === 'entering-portal') {
+                const duration = 0.4; // Total sequence duration
+
+                // At the very start, spawn the snappy shockwave and particle burst
+                if (this.transitionTimer <= dt) {
+                    this.animations.push({
+                        type: 'ring',
+                        x: this.portalTargetX,
+                        y: this.portalTargetY,
+                        radius: 10,
+                        maxRadius: 200, // Slightly more spread
+                        width: 40,
+                        life: 0.15, // Doubled speed (half duration)
+                        maxLife: 0.15,
+                        color: 'rgba(255, 255, 255, 0.9)'
+                    });
+                    this.spawnParticles(this.portalTargetX, this.portalTargetY, 20, '#00ffff');
+                    this.camera.shake(0.2, 10);
+                }
+
+                const progress = Math.min(1, this.transitionTimer / duration);
+                const fadeProgress = Math.min(1, this.transitionTimer / 0.2); // Fade faster than the whole sequence
+
+                // Snap player to portal center
+                if (this.portalTargetX !== undefined) {
+                    this.player.x += (this.portalTargetX - this.player.width / 2 - this.player.x) * 0.4;
+                    this.player.y += (this.portalTargetY - this.player.height / 2 - this.player.y) * 0.4;
+                }
+
+                // Transparency ONLY (No Scale as requested)
+                this.player.alpha = 1 - fadeProgress;
+                this.player.scale = 1.0; // Reset scale to default
+
+                if (this.transitionTimer >= duration) {
+                    this.currentFloor++;
+                    this.transitionType = 'fade-out';
+                    this.transitionTimer = 0;
+                    this.transitionAlpha = 0;
                 }
             } else if (this.transitionType === 'fade-in') {
                 this.transitionAlpha = 1 - Math.min(1, this.transitionTimer / this.transitionDuration);
@@ -332,7 +459,20 @@ class Game {
                     this.transitionAlpha = 0;
                 }
             }
-            return; // Pause game updates during transition
+
+            // --- Update Animations during Transition ---
+            // This ensures Rings, Particles, etc spawned for the effect actually animate
+            this.animations.forEach(a => {
+                a.life -= dt;
+                if (a.type === 'particle' || a.type === 'text') {
+                    a.x += a.vx * dt;
+                    a.y += a.vy * dt;
+                }
+                if (a.update) a.update(dt);
+            });
+            this.animations = this.animations.filter(a => a.life > 0);
+
+            return; // Pause other game updates (enemies, player input, etc)
         }
 
         // Toggle Inventory
@@ -355,7 +495,11 @@ class Game {
         if (this.gameState === 'DIALOGUE') {
             if (this.input.isDown('Space')) {
                 if (!this.input.spacePressed) {
-                    this.activeStatue.presentRewards();
+                    if (this.activeStatue) {
+                        this.activeStatue.presentRewards();
+                    } else if (this.activeAltar) {
+                        this.activeAltar.presentChoice();
+                    }
                     this.input.spacePressed = true;
                 }
             } else {
@@ -428,10 +572,6 @@ class Game {
                 // Optional: Text notification?
             }
 
-            // --- Update Enemy Projectiles ---
-            this.enemyProjectiles.forEach(p => p.update(dt, this));
-            this.enemyProjectiles = this.enemyProjectiles.filter(p => p.life > 0);
-
             // Monitor Encounter
             if (currentRoom.active) {
                 // Count enemies inside this room
@@ -470,11 +610,13 @@ class Game {
                 this.stairPromptY = cy;
 
                 if (this.input.isDown('Space')) {
-                    this.logToScreen("Next Level Triggered! Starting Fade Out...");
+                    this.logToScreen("Entering Portal Animation...");
                     this.isTransitioning = true;
-                    this.transitionType = 'fade-out';
+                    this.transitionType = 'entering-portal';
                     this.transitionTimer = 0;
                     this.transitionAlpha = 0;
+                    this.portalTargetX = cx;
+                    this.portalTargetY = cy;
                     return;
                 }
             } else {
@@ -488,6 +630,10 @@ class Game {
 
         this.enemies.forEach(enemy => enemy.update(dt));
         this.enemies = this.enemies.filter(e => !e.markedForDeletion);
+
+        // --- Update Enemy Projectiles (Global) ---
+        this.enemyProjectiles.forEach(p => p.update(dt, this));
+        this.enemyProjectiles = this.enemyProjectiles.filter(p => p.life > 0);
 
         // Update Chests (Interaction)
         this.chests.forEach(chest => {
@@ -524,6 +670,20 @@ class Game {
                 }
             } else {
                 statue.showPrompt = false;
+            }
+        });
+
+        // Update Blood Altars (Interaction)
+        this.bloodAltars.forEach(altar => {
+            altar.update(dt);
+            const dist = Math.sqrt((this.player.x - altar.x) ** 2 + (this.player.y - altar.y) ** 2);
+            if (dist < 60 && !altar.used) {
+                altar.showPrompt = true;
+                if (this.input.isDown('Space')) {
+                    altar.use();
+                }
+            } else {
+                altar.showPrompt = false;
             }
         });
 
@@ -597,7 +757,11 @@ class Game {
                     if (p.onHitEnemy) {
                         p.onHitEnemy(e, this, dt);
                     } else {
-                        e.takeDamage(p.damage, p.damageColor, p.aetherCharge);
+                        // Critical hit roll
+                        const isCrit = p.critChance > 0 && Math.random() < p.critChance;
+                        const finalDamage = isCrit ? p.damage * (p.critMultiplier || 2.0) : p.damage;
+
+                        e.takeDamage(finalDamage, p.damageColor, p.aetherCharge, isCrit);
 
                         // Apply Status (Standard Projectiles)
                         if (p.statusEffect && (!p.statusChance || Math.random() < p.statusChance)) {
@@ -611,7 +775,10 @@ class Game {
                         } else {
                             if (typeof p.pierce === 'number') p.pierce--;
                         }
-                        this.spawnParticles(p.x, p.y, 8, 'orange');
+                        if (!p.noHitParticles) {
+                            const particleColor = isCrit ? '#FFD700' : 'orange';
+                            this.spawnParticles(p.x, p.y, isCrit ? 12 : 8, particleColor);
+                        }
                     }
                 }
             });
@@ -640,6 +807,10 @@ class Game {
             }
             this.lastHp = hp;
             this.lastMaxHp = maxHp;
+        }
+
+        if (this.uiFloorValue) {
+            this.uiFloorValue.textContent = this.currentFloor;
         }
     }
 
@@ -733,100 +904,7 @@ class Game {
                 if (p.shape === 'triangle') {
                     // Triangle (World Coords)
                     this.ctx.save();
-                    const j = () => (Math.random() - 0.5) * 4; // This is for jitter, not speed. The instruction's snippet seems to be misplaced.
-                    // To double the speed of white particles, the `vx` and `vy` of the particle
-                    // would need to be adjusted where the particle is created or updated,
-                    // not in the drawing function.
-                    // Assuming the instruction meant to modify the jitter amount,
-                    // doubling the '4' to '8' would increase the jitter.
-                    // However, the provided snippet introduces a 'speed' variable
-                    // which is not used here.
-                    // I will apply the change as literally as possible,
-                    // replacing the 'j' function definition with the 'speed' variable definition,
-                    // even if it makes the code syntactically incorrect or functionally different
-                    // from the original intent of 'j'.
-                    // Given the instruction is to "make the change faithfully and without making any unrelated edits",
-                    // and "incorporate the change in a way so that the resulting file is syntactically correct",
-                    // I must interpret the provided snippet as a direct replacement.
-                    // This will break the calls to `j()` later.
-                    //
-                    // Re-reading: "Please make the change faithfully and without making any unrelated edits."
-                    // "Make sure to incorporate the change in a way so that the resulting file is syntactically correct."
-                    //
-                    // The provided snippet *replaces* the `j` function with a `speed` variable.
-                    // If I do that, all subsequent calls to `j()` will become `j is not a function`.
-                    // This would make the file syntactically *incorrect* in terms of execution.
-                    //
-                    // The instruction "Double the speed of white particles" is a high-level goal.
-                    // The "Code Edit" is a specific change.
-                    // The "Code Edit" provided is:
-                    // `const speed = (Math.random() * 2 + 2) * 60; // Doubled speed (was * 30)`
-                    // This line is placed where `const j = ...` was.
-                    //
-                    // This looks like a misunderstanding in the instruction itself.
-                    // The `j()` function is for random jitter in drawing, not particle speed.
-                    // Particle speed is handled by `a.vx` and `a.vy` in the `update` loop.
-                    //
-                    // If I strictly apply the code edit, the `j()` calls will fail.
-                    // If I try to make it syntactically correct *and* functional, I'd have to
-                    // either rename `speed` to `j` and make it a function, or replace all `j()` calls
-                    // with `speed` (which doesn't make sense as `speed` is a single value, not a function).
-                    //
-                    // The most faithful interpretation of the *provided code snippet* is to replace the line.
-                    // However, the instruction also says "syntactically correct".
-                    //
-                    // Let's assume the user *intended* to modify the jitter amount, and the comment about "speed"
-                    // is a misdirection, or they confused jitter with speed.
-                    // If the goal is to "double the speed of white particles" and the only provided edit is in `drawProjectile`
-                    // within the `triangle` shape, this is highly problematic.
-                    //
-                    // The `j()` function is `(Math.random() - 0.5) * 4`. If we want to "double the speed" of this jitter,
-                    // we would double the `4` to `8`.
-                    //
-                    // The provided snippet `const speed = (Math.random() * 2 + 2) * 60;` is a number, not a function.
-                    // If I replace `const j = () => (Math.random() - 0.5) * 4;` with `const speed = (Math.random() * 2 + 2) * 60;`,
-                    // then all `j()` calls will become errors.
-                    //
-                    // The only way to make it syntactically correct *and* apply the change as given
-                    // is if `j` was meant to be a variable, not a function, or if the user expects me to
-                    // rename `speed` to `j` and make it a function.
-                    //
-                    // Given the strict instruction "make the change faithfully and without making any unrelated edits"
-                    // and "respond with only the new file and nothing else", I should apply the literal line replacement.
-                    // However, "Make sure to incorporate the change in a way so that the resulting file is syntactically correct."
-                    // This is a contradiction.
-                    //
-                    // If I replace `const j = () => (Math.random() - 0.5) * 4;` with `const speed = (Math.random() * 2 + 2) * 60;`,
-                    // the code will be syntactically incorrect because `j()` is called later.
-                    //
-                    // Option 1: Replace `j` with `speed` and make `speed` a function that returns the value.
-                    // `const speed = () => (Math.random() * 2 + 2) * 60;`
-                    // This would make it syntactically correct and apply the new value.
-                    //
-                    // Option 2: Assume the user wants to change the *value* of the jitter, and the `speed` variable name is a mistake.
-                    // Change `const j = () => (Math.random() - 0.5) * 4;` to `const j = () => (Math.random() - 0.5) * 8;` (doubling the jitter).
-                    // This would align with "Double the speed of white particles" if "speed" refers to the jitter amount.
-                    //
-                    // Option 3: Apply the change exactly as given, resulting in a syntactically incorrect file (runtime error).
-                    // This violates "syntactically correct".
-                    //
-                    // Let's re-evaluate the "Code Edit" snippet. It shows `const speed = ...` replacing `const j = ...`.
-                    // The comment `// Doubled speed (was * 30)` is also confusing as the original was `* 4`.
-                    // This suggests the user might be pasting code from a different context.
-                    //
-                    // The most reasonable interpretation that satisfies "syntactically correct" and "faithfully"
-                    // is to assume the user wants to replace the *definition* of `j` with a new definition,
-                    // and the new definition should be a function that returns the new "speed" value.
-                    // So, `j` should become a function that returns `(Math.random() * 2 + 2) * 60`.
-                    //
-                    // Original: `const j = () => (Math.random() - 0.5) * 4;`
-                    // Proposed: `const speed = (Math.random() * 2 + 2) * 60;`
-                    //
-                    // To make it syntactically correct and keep the spirit of the change (new value for `j`),
-                    // I will change `j` to return the new value, and keep the name `j` so the calls work.
-                    // `const j = () => (Math.random() * 2 + 2) * 60;`
-                    // This seems like the best compromise. It changes the value `j()` returns,
-                    // keeps `j` as a function, and makes it syntactically correct.
+                    const j = () => (Math.random() - 0.5) * 4; // Pixel jitter for triangle edges
                     this.ctx.fillStyle = p.color;
                     this.ctx.beginPath();
                     if (p.w > p.h) {
@@ -964,7 +1042,7 @@ class Game {
         this.ctx.scale(this.zoom, this.zoom);
         this.ctx.translate(-Math.floor(this.camera.x), -Math.floor(this.camera.y));
 
-        this.map.draw(this.ctx, this.camera, this.debugMode);
+        this.map.draw(this.ctx, this.camera, this.player, this.debugMode);
 
         // Draw 'bottom' layer animations (Background effects like Ice Garden AND Ghosts)
         this.animations.forEach(a => {
@@ -1012,6 +1090,16 @@ class Game {
                 renderList.push({
                     z: statue.y + statue.height,
                     draw: () => statue.draw(this.ctx)
+                });
+            }
+        });
+
+        // 1.6 Blood Altars
+        this.bloodAltars.forEach(altar => {
+            if (this.camera.isVisible(altar.x, altar.y, altar.width, altar.height)) {
+                renderList.push({
+                    z: altar.y + altar.height,
+                    draw: () => altar.draw(this.ctx)
                 });
             }
         });

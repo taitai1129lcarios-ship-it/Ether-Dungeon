@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aether Dungeon</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 
 <body>
@@ -37,10 +40,15 @@
             <div id="aether-gauge-container">
                 <div id="aether-gauge-fill"></div>
             </div>
-            <div id="level-display">LV: <span id="level-value">1</span></div>
+
             <div id="currency-display">
                 <img src="assets/aether_shard.png" alt="Currency" class="currency-icon">
                 <span id="currency-value">0</span>
+            </div>
+
+            <div id="floor-display">
+                <span id="floor-label">Floor</span>
+                <span id="floor-value">1</span>
             </div>
         </div>
 
@@ -191,6 +199,9 @@
         </div>
         <!-- Dialogue Overlay -->
         <div id="dialogue-overlay" style="display: none;">
+            <div id="dialogue-choices-container" style="display: none;">
+                <!-- Choice buttons will be injected here -->
+            </div>
             <div id="dialogue-box">
                 <div id="dialogue-text"></div>
                 <div id="dialogue-prompt">[SPACE] で次へ</div>

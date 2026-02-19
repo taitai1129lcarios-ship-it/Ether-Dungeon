@@ -29,6 +29,9 @@ export function createSkill(data) {
     // Expose metadata for Player checks
     skill.chargeable = data.params.chargeable || false;
     skill.chargeTime = data.params.chargeTime || 1.0;
+    skill.description = data.description || '';
+    skill.params = data.params; // Expose for inventory display
+    skill.aetherRushDesc = data.aetherRushDesc || null; // Expose for inventory display
 
     // Initialize state if needed (for reverse slash)
     if (data.behavior === 'arc_slash') {
@@ -75,6 +78,13 @@ export function createSkill(data) {
             }
 
             console.log(`Charged Cast: Ratio ${ratio.toFixed(2)}, Dmg ${finalParams.damage}, Size ${finalParams.width}`);
+        }
+
+        // Apply Blood Blessings / Damage Multipliers
+        if (user && user.damageMultiplier !== undefined) {
+            if (finalParams.damage !== undefined) finalParams.damage *= user.damageMultiplier;
+            if (finalParams.minDamage !== undefined) finalParams.minDamage *= user.damageMultiplier;
+            if (finalParams.maxDamage !== undefined) finalParams.maxDamage *= user.damageMultiplier;
         }
 
         behaviorFn.call(skill, user, game, finalParams);

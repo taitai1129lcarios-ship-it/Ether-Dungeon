@@ -63,21 +63,15 @@ export class Map {
             // 1. Place Preset Rooms (Start Room remains first)
 
             // 2. Place Staircase Room (6x6, 1 Entrance) - Strictly Guaranteed
-            while (!this.placeRoom({
-                w: 6, h: 6,
-                type: 'staircase',
-                entranceCount: 1
-            })) {
-                // Retry until successful
-            }
+            { let r = 0; while (!this.placeRoom({ w: 6, h: 6, type: 'staircase', entranceCount: 1 }) && r++ < 200); }
 
             // 2b. Place Statue Room (7x7, 1 Entrance) - Strictly Guaranteed
-            while (!this.placeRoom({
-                w: 7, h: 7,
-                type: 'statue',
-                entranceCount: 1
-            })) {
-                // Retry until successful
+            { let r = 0; while (!this.placeRoom({ w: 7, h: 7, type: 'statue', entranceCount: 1 }) && r++ < 200); }
+
+            // 2c. Place Blood Altar Room (7x7, 1 Entrance)
+            const ALTAR_SPAWN_RATE = 1.0; // 0.0 to 1.0
+            if (Math.random() < ALTAR_SPAWN_RATE) {
+                let r = 0; while (!this.placeRoom({ w: 7, h: 7, type: 'altar', entranceCount: 1 }) && r++ < 200);
             }
 
             // 3. Place Random Rooms
@@ -111,14 +105,16 @@ export class Map {
                     if (this.tiles[y][x] !== 1 || this.roomGrid[y][x] !== -1) isVoid = false;
 
                     if (isVoid) {
-                        for (let dy = -10; dy <= 10; dy++) {
+                        outer: for (let dy = -10; dy <= 10; dy++) {
                             for (let dx = -10; dx <= 10; dx++) {
-                                if (this.tiles[y + dy][x + dx] !== 1 || this.roomGrid[y + dy][x + dx] !== -1) {
+                                const ny = y + dy;
+                                const nx = x + dx;
+                                if (ny < 0 || ny >= this.height || nx < 0 || nx >= this.width) continue;
+                                if (this.tiles[ny][nx] !== 1 || this.roomGrid[ny][nx] !== -1) {
                                     isVoid = false;
-                                    break;
+                                    break outer;
                                 }
                             }
-                            if (!isVoid) break;
                         }
                     }
 
@@ -325,24 +321,27 @@ export class Map {
                 // Horizontal match first or Vertical? Randomize for variety or stick to simple?
                 // Simple L-shape
 
+                const setTile = (tx, ty) => {
+                    if (tx >= 0 && tx < this.width && ty >= 0 && ty < this.height)
+                        this.tiles[ty][tx] = 0;
+                };
+
                 // Horizontal Part
                 const xDir = tx > cx ? 1 : -1;
                 for (let x = cx; x !== tx; x += xDir) {
-                    this.tiles[cy][x] = 0;
-                    this.tiles[cy + 1][x] = 0; // Widen
+                    setTile(x, cy);
+                    setTile(x, cy + 1); // Widen
                 }
                 // Vertical Part
                 const yDir = ty > cy ? 1 : -1;
                 for (let y = cy; y !== ty; y += yDir) {
-                    this.tiles[y][tx] = 0;
-                    this.tiles[y][tx + 1] = 0; // Widen
+                    setTile(tx, y);
+                    setTile(tx + 1, y); // Widen
                 }
 
                 // Ensure intersection/corners are clear
-                this.tiles[cy][tx] = 0;
-                this.tiles[cy + 1][tx] = 0;
-                this.tiles[cy][tx + 1] = 0;
-                this.tiles[cy + 1][tx + 1] = 0;
+                setTile(tx, cy); setTile(tx, cy + 1);
+                setTile(tx + 1, cy); setTile(tx + 1, cy + 1);
 
                 // Note: We don't update accessibleTiles here. 
                 // Connecting to the ORIGINAL main chunk ensures we don't accidentally link to another isolated island 
@@ -413,6 +412,9 @@ export class Map {
             room.cleared = true;
         } else if (room.type === 'statue') {
             // Statue room safe
+            room.cleared = true;
+        } else if (room.type === 'altar') {
+            // Altar room safe
             room.cleared = true;
         } else {
             // Normal rooms have enemies
@@ -681,6 +683,25 @@ export class Map {
         let bestTile = null;
         let minDst = Infinity;
 
+        // Search all tiles for the nearest accessible floor tile outside this room
+        const searchRadius = 40; // Limit search area for performance
+        const cx = connector.x;
+        const cy = connector.y;
+        for (let sy = Math.max(1, cy - searchRadius); sy < Math.min(this.height - 1, cy + searchRadius); sy++) {
+            for (let sx = Math.max(1, cx - searchRadius); sx < Math.min(this.width - 1, cx + searchRadius); sx++) {
+                const tile = this.tiles[sy][sx];
+                const rId = this.roomGrid[sy][sx];
+
+                // Must be walkable and NOT part of the current room
+                if ((tile === 0 || tile === 2) && rId !== room.id) {
+                    const dst = Math.abs(cx - sx) + Math.abs(cy - sy);
+                    if (dst < minDst) {
+                        minDst = dst;
+                        bestTile = { x: sx, y: sy };
+                    }
+                }
+            }
+        }
 
         if (bestTile) {
             // 1. Calculate Geometry (Don't dig yet)
@@ -1306,7 +1327,7 @@ export class Map {
         }
     }
 
-    draw(ctx, camera, debugMode = false) {
+    draw(ctx, camera, player, debugMode = false) {
         const startX = Math.floor(camera.x / this.tileSize);
         const startY = Math.floor(camera.y / this.tileSize);
         const endX = startX + Math.ceil(camera.width / this.tileSize) + 1;
@@ -1392,30 +1413,43 @@ export class Map {
                 const tlX = centerX - 1;
                 const tlY = centerY - 1;
 
-                if (this.stairsImage.complete && this.stairsImage.naturalWidth !== 0) {
-                    // Rotate slowly
-                    const angle = performance.now() * 0.001; // 1 radian per second (approx 60 deg/s) -> Slow down?
-                    // Let's make it slower: 0.0005
-                    const rotation = performance.now() * 0.0005;
+                const centerPixelX = (tlX + 1) * this.tileSize;
+                const centerPixelY = (tlY + 1) * this.tileSize;
 
-                    const cx = (centerX - 0.5) * this.tileSize; // Center of 2x2 area (width 2 tiles, so center is between tiles? No.)
-                    // Center of 2x2 area:
-                    // tlX, tlY is top-left index.
-                    // Pixel pos of tlX, tlY is tlX*TS, tlY*TS.
-                    // Size is 2*TS.
-                    // Center is tlX*TS + TS, tlY*TS + TS.
-                    const centerPixelX = (tlX + 1) * this.tileSize;
-                    const centerPixelY = (tlY + 1) * this.tileSize;
+                // --- PROXIMITY SCALING LOGIC (State-based) ---
+                if (room.currentPortalScale === undefined) room.currentPortalScale = 0.3;
+
+                let targetScale = 0.3; // Default 70% reduction
+                if (player) {
+                    const dist = Math.sqrt((player.x + player.width / 2 - centerPixelX) ** 2 + (player.y + player.height / 2 - centerPixelY) ** 2);
+                    const activationDist = 100; // Increased to 100px
+                    if (dist < activationDist) {
+                        targetScale = 1.5; // Final size
+                    }
+                }
+
+                // Smoothly interpolate towards target scale (Ease Out)
+                const lerpSpeed = 0.02; // Even slower, more gradual growth
+                room.currentPortalScale += (targetScale - room.currentPortalScale) * lerpSpeed;
+                const drawScale = room.currentPortalScale;
+
+                if (this.stairsImage.complete && this.stairsImage.naturalWidth !== 0) {
+                    const rotation = performance.now() * 0.0005;
 
                     ctx.save();
                     ctx.translate(centerPixelX, centerPixelY);
+                    ctx.scale(drawScale, drawScale);
                     ctx.rotate(rotation);
                     ctx.drawImage(this.stairsImage, -this.tileSize, -this.tileSize, this.tileSize * 2, this.tileSize * 2);
                     ctx.restore();
                 } else {
                     // Fallback: Blue Rect (2x2)
+                    ctx.save();
+                    ctx.translate(centerPixelX, centerPixelY);
+                    ctx.scale(drawScale, drawScale);
                     ctx.fillStyle = '#4488ff';
-                    ctx.fillRect(Math.floor(tlX * this.tileSize), Math.floor(tlY * this.tileSize), this.tileSize * 2, this.tileSize * 2);
+                    ctx.fillRect(-this.tileSize, -this.tileSize, this.tileSize * 2, this.tileSize * 2);
+                    ctx.restore();
                 }
             }
         }

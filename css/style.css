@@ -5,6 +5,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    width: 100%;
     height: 100vh;
     color: white;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -14,7 +15,14 @@ body {
 #game-container {
     position: relative;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-    border: 2px solid #333;
+    /* border: 2px solid #333; */
+    /* Border might look off when full screen */
+    width: 100%;
+    /* height: 100%; */
+    /* Remove to follow canvas height */
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 canvas {
@@ -24,12 +32,17 @@ canvas {
 
 #ui-layer {
     position: absolute;
-    top: 10px;
-    left: 10px;
+    top: 0;
+    left: 0;
+    width: 800px;
+    /* Base width for layout consistency */
     pointer-events: none;
     font-size: 18px;
     font-weight: bold;
     text-shadow: 1px 1px 2px black;
+    transform-origin: top left;
+    padding: 10px;
+    box-sizing: border-box;
 }
 
 #health-bar-container {
@@ -102,9 +115,7 @@ canvas {
     box-shadow: 0 0 5px #00ffff;
 }
 
-#level-display {
-    color: #44ff44;
-}
+
 
 #currency-display {
     display: flex;
@@ -122,6 +133,25 @@ canvas {
     height: 24px;
     object-fit: contain;
     filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.5));
+}
+
+#floor-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    color: #ffffff;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px black;
+    margin-top: 2px;
+    opacity: 0.9;
+}
+
+#floor-label {
+    color: #aaaaaa;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 /* Skill Bar UI */
@@ -185,10 +215,15 @@ canvas {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 16px;
-    font-weight: bold;
-    color: #ffcccc;
-    text-shadow: 1px 1px 0 #000;
+    font-size: 18px;
+    font-weight: 800;
+    color: #ffffff;
+    text-shadow:
+        -1px -1px 0 #000,
+        1px -1px 0 #000,
+        -1px 1px 0 #000,
+        1px 1px 0 #000,
+        0px 0px 4px rgba(0, 0, 0, 0.8);
     display: none;
     /* show when on cooldown */
     z-index: 4;
@@ -367,6 +402,23 @@ canvas {
     animation: shake 0.4s;
 }
 
+.equip-slot.can-equip {
+    border-color: #00cc66;
+    background-color: #1a2e1a;
+    box-shadow: 0 0 8px rgba(0, 204, 102, 0.4);
+    animation: pulse-equip 1s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-equip {
+    from {
+        box-shadow: 0 0 4px rgba(0, 204, 102, 0.3);
+    }
+
+    to {
+        box-shadow: 0 0 12px rgba(0, 204, 102, 0.7);
+    }
+}
+
 @keyframes shake {
     0% {
         transform: translateX(0);
@@ -440,13 +492,17 @@ canvas {
     grid-template-columns: repeat(auto-fill, 60px);
     gap: 10px;
     justify-content: center;
-    /* Center the grid in the panel */
     background-color: #1a1a1a;
     padding: 10px;
+    /* 外周をgapと同じ値に統一 */
     border-radius: 5px;
-    height: 300px;
+    min-height: 80px;
+    /* 最低1行分 */
+    max-height: 300px;
     overflow-y: auto;
     border: 1px solid #444;
+    align-content: start;
+    /* アイテムを上詰めにして下部空白を防ぐ */
 }
 
 .inventory-item {
@@ -684,19 +740,46 @@ canvas {
     bottom: 20px;
     left: 20px;
     right: 20px;
-    height: 150px;
     z-index: 50;
-    /* Higher than Skill Bar (z-index ~5) and Skill Selection Modal (z-index 20) */
     pointer-events: none;
-    /* Let clicks pass through if needed, though usually dialogue blocks input */
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+#dialogue-choices-container {
     display: flex;
     justify-content: center;
-    align-items: center;
+    gap: 20px;
+    width: 100%;
+    pointer-events: auto;
+}
+
+.dialogue-choice-btn {
+    background: rgba(0, 0, 0, 0.85);
+    border: 2px solid white;
+    color: white;
+    padding: 12px 30px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    min-width: 150px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.dialogue-choice-btn:hover {
+    background: white;
+    color: black;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
 }
 
 #dialogue-box {
     width: 100%;
-    height: 100%;
     background-color: rgba(0, 0, 0, 0.8);
     border: 3px solid white;
     border-radius: 8px;
@@ -707,14 +790,14 @@ canvas {
     padding: 20px;
     box-sizing: border-box;
     pointer-events: auto;
-    /* Catch clicks on the box itself */
+    min-height: 120px;
 }
 
 #dialogue-text {
     font-size: 24px;
     color: white;
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     font-weight: bold;
     text-shadow: 1px 1px 2px black;
 }
@@ -722,8 +805,7 @@ canvas {
 #dialogue-prompt {
     font-size: 14px;
     color: #ccc;
-    margin-top: auto;
-    /* Push to bottom */
+    font-style: italic;
 }
 
 /* Blessing Selection Modal (Mirroring Skill Selection) */
@@ -806,4 +888,180 @@ canvas {
     align-items: center;
     /* Center text vertically if short */
     justify-content: center;
+}
+
+.blessing-card.acquired {
+    width: 400px !important;
+    height: 400px !important;
+    /* Remove redundant CSS borders - let the image frame show */
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+    background-image: url('../assets/bg_blood_blessing.png') !important;
+    background-size: 100% 100% !important;
+    /* Match image ratio exactly */
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    image-rendering: pixelated;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    /* Center content vertically */
+    padding: 50px 40px !important;
+    box-sizing: border-box;
+}
+
+.acquired-title {
+    text-shadow: 0 0 10px rgba(255, 0, 0, 0.8), 2px 2px 4px #000 !important;
+    font-weight: 900 !important;
+    z-index: 30;
+}
+
+.blessing-card.acquired::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Pixel noise effect */
+    background-image:
+        linear-gradient(45deg, rgba(255, 0, 0, 0.05) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255, 0, 0, 0.05) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255, 0, 0, 0.05) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255, 0, 0, 0.05) 75%);
+    background-size: 4px 4px;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Ensure pixel-art look for texts */
+.blessing-card.acquired .blessing-card-name {
+    font-size: 28px;
+    letter-spacing: 2px;
+    color: #ff4444;
+}
+
+/* Remove default background/border for description when on the custom card */
+.blessing-card.acquired .blessing-card-desc {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin-top: 0 !important;
+    color: #fff;
+    text-shadow: 2px 2px 4px #000;
+    font-size: 20px;
+    /* Slightly larger for emphasis */
+    font-family: 'monospace';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    flex: 1;
+    width: 100%;
+    max-width: 260px;
+    /* ★枠内（石の部分）に収まるよう制限 */
+    padding: 0 20px !important;
+    box-sizing: border-box;
+}
+
+
+.acquire-btn-wrapper {
+    z-index: 25;
+}
+
+.acquire-btn {
+    background: rgba(0, 0, 0, 0.85);
+    border: 2px solid white;
+    color: white;
+    padding: 12px 50px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    min-width: 150px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.acquire-btn:hover {
+    background: rgba(40, 40, 40, 0.95);
+    border-color: #ff4444;
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(255, 68, 68, 0.3);
+}
+
+.acquire-btn:active {
+    transform: scale(0.95);
+}
+
+/* === Press Start 2P Font === */
+#hp-value,
+#hp-max,
+#health-bar-text {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    letter-spacing: 0;
+}
+
+#currency-value {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+}
+
+#floor-value {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+}
+
+/* === Angel Blessing Card === */
+.blessing-card.angel-card {
+    background-image: url('../assets/bg_angel_blessing.png') !important;
+    background-size: 100% 100% !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    image-rendering: pixelated;
+    padding: 40px 30px !important;
+    overflow: hidden !important;
+    box-sizing: border-box;
+}
+
+/* Selection cards (3 choices) when angel */
+.blessing-card.angel-card .blessing-card-name {
+    color: #ffe066;
+    text-shadow: 0 0 6px rgba(255, 220, 100, 0.6);
+    font-size: 18px;
+    white-space: pre-line;
+    text-align: center;
+}
+
+.blessing-card.angel-card .blessing-card-desc {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 14px;
+    color: #fff;
+    text-shadow: 1px 1px 2px #000;
+}
+
+/* Acquired card (1 card confirm) when angel */
+.blessing-card.acquired.angel-card {
+    width: 400px !important;
+    height: 400px !important;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px !important;
 }

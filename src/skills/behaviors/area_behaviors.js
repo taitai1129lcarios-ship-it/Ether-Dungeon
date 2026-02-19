@@ -670,7 +670,7 @@ export const areaBehaviors = {
                             // Actually, let's just use spawnProjectile with 'ice_spike_burst' style?
                             // Simplified: Spawn a short-lived damage zone at enemy feet.
 
-                            const img = getCachedImage(spriteSheet);
+                            const img = getCachedImage('assets/ice_spike.png');
 
                             const spikeLife = 0.5;
                             const maxH = 46;

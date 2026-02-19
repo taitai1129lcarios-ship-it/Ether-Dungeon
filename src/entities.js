@@ -6,3 +6,4 @@ export { SkeletonArcher } from './enemies/SkeletonArcher.js';
 export { Chest } from './entities/Chest.js';
 export { Statue } from './entities/Statue.js';
 export { DropItem } from './entities/DropItem.js';
+export { BloodAltar } from './entities/BloodAltar.js';

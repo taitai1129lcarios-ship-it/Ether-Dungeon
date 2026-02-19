@@ -9,6 +9,10 @@ export class Bat extends Enemy {
     }
 
     update(dt) {
+        if (this.isSpawning) {
+            super.update(dt);
+            return;
+        }
         // Decrease flash timer
         if (this.flashTimer > 0) {
             this.flashTimer -= dt;

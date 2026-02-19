@@ -166,7 +166,7 @@ function drawMiniMap(ctx, game, screenWidth, screenHeight) {
     const player = game.player;
 
     // Mini-map configuration
-    const mapSize = 150; // Max width/height in pixels
+    const mapSize = 200; // Max width/height in pixels
     const timerSize = 4; // Tile size in pixels (if fitted)
 
     // Calculate scale to fit in mapSize
@@ -313,7 +313,7 @@ export function hideSkillSelection() {
 const blessingModal = document.getElementById('blessing-selection-modal');
 const blessingCardsContainer = document.getElementById('blessing-selection-cards');
 
-export function showBlessingSelection(options, onSelectCallback) {
+export function showBlessingSelection(options, onSelectCallback, source = 'default') {
     if (!blessingModal || !blessingCardsContainer) return;
 
     // Clear previous
@@ -321,7 +321,7 @@ export function showBlessingSelection(options, onSelectCallback) {
 
     options.forEach(opt => {
         const card = document.createElement('div');
-        card.className = 'blessing-card';
+        card.className = source === 'angel' ? 'blessing-card angel-card' : 'blessing-card';
         card.dataset.id = opt.id;
 
         // Name
@@ -335,7 +335,7 @@ export function showBlessingSelection(options, onSelectCallback) {
         // Description
         const desc = document.createElement('div');
         desc.className = 'blessing-card-desc';
-        desc.textContent = opt.description || '';
+        desc.textContent = opt.description || opt.desc || '';
         card.appendChild(desc);
 
         // Click Handler
@@ -346,6 +346,77 @@ export function showBlessingSelection(options, onSelectCallback) {
 
         blessingCardsContainer.appendChild(card);
     });
+
+    blessingModal.style.display = 'flex';
+}
+
+export function showAcquiredBlessing(blessing, onConfirmCallback, source = 'blood') {
+    if (!blessingModal || !blessingCardsContainer) return;
+
+    // Clear previous
+    blessingCardsContainer.innerHTML = '';
+
+    // Also remove any existing standalone acquire btn (from previous calls)
+    const container = blessingModal.querySelector('.skill-selection-container');
+    const existingBtn = container.querySelector('.acquire-btn-wrapper');
+    if (existingBtn) existingBtn.remove();
+
+    // Change Title temporarily
+    const title = blessingModal.querySelector('h2');
+    const originalTitle = title ? title.textContent : '女神の祝福';
+    if (title) title.textContent = source === 'angel' ? '天使の加護を獲得！' : '血の祝福を獲得！';
+
+    // Wrapper to stack name above card
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.alignItems = 'center';
+    wrapper.style.gap = '20px';
+
+    const card = document.createElement('div');
+    card.className = source === 'angel'
+        ? 'blessing-card acquired angel-card'
+        : 'blessing-card acquired';
+    card.style.cursor = 'default';
+
+    // Name (Now placed OUTSIDE/ABOVE the card)
+    const name = document.createElement('div');
+    name.className = 'blessing-card-name acquired-title';
+    name.textContent = blessing.name;
+    name.style.color = source === 'angel' ? '#ffe066' : '#ff4444';
+    name.style.fontSize = '32px';
+    name.style.marginBottom = '0';
+    wrapper.appendChild(name);
+
+    // Description (Inside card, will be centered via CSS)
+    const desc = document.createElement('div');
+    desc.className = 'blessing-card-desc';
+    desc.textContent = blessing.description || blessing.desc || '';
+    card.appendChild(desc);
+
+    wrapper.appendChild(card);
+    blessingCardsContainer.appendChild(wrapper);
+
+    // Acquire Button Wrapper (placed outside cards container)
+    const btnWrapper = document.createElement('div');
+    btnWrapper.className = 'acquire-btn-wrapper';
+    btnWrapper.style.marginTop = '30px';
+    btnWrapper.style.width = '100%';
+    btnWrapper.style.display = 'flex';
+    btnWrapper.style.justifyContent = 'center';
+
+    const btn = document.createElement('button');
+    btn.className = 'acquire-btn';
+    btn.textContent = '獲得';
+    btn.style.width = '200px'; // Fixed width when outside
+    btn.addEventListener('click', () => {
+        if (title) title.textContent = originalTitle;
+        btnWrapper.remove();
+        hideBlessingSelection();
+        if (onConfirmCallback) onConfirmCallback();
+    });
+    btnWrapper.appendChild(btn);
+    container.appendChild(btnWrapper);
 
     blessingModal.style.display = 'flex';
 }
@@ -369,22 +440,59 @@ const dialogueOverlay = document.getElementById('dialogue-overlay');
 const dialogueTextEl = document.getElementById('dialogue-text');
 
 export function drawDialogue(game, text) {
-    if (!dialogueOverlay || !dialogueTextEl) return;
+    const overlay = document.getElementById('dialogue-overlay');
+    const textEl = document.getElementById('dialogue-text');
+    if (!overlay || !textEl) return;
 
     // Show Overlay
-    if (dialogueOverlay.style.display !== 'flex') {
-        dialogueOverlay.style.display = 'flex';
+    if (overlay.style.display !== 'flex') {
+        overlay.style.display = 'flex';
     }
 
-    // Update Text
-    if (dialogueTextEl.textContent !== text) {
-        dialogueTextEl.textContent = text;
+    // Update Text (Avoid redundant updates to prevent flicker/cursor reset if any)
+    const safeText = text || "";
+    if (textEl.textContent !== safeText) {
+        textEl.textContent = safeText;
     }
 }
 
 export function hideDialogue() {
     if (dialogueOverlay && dialogueOverlay.style.display !== 'none') {
         dialogueOverlay.style.display = 'none';
+        hideChoices(); // Ensure choices are hidden too
+
+        const prompt = document.getElementById('dialogue-prompt');
+        if (prompt) prompt.style.display = 'block';
+    }
+}
+
+const choicesContainer = document.getElementById('dialogue-choices-container');
+
+export function showChoices(options, onSelectCallback) {
+    if (!choicesContainer) return;
+
+    const prompt = document.getElementById('dialogue-prompt');
+    if (prompt) prompt.style.display = 'none';
+
+    choicesContainer.innerHTML = ''; // Clear previous
+    choicesContainer.style.display = 'flex';
+
+    options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'dialogue-choice-btn';
+        btn.textContent = opt.name;
+        btn.addEventListener('click', () => {
+            hideChoices();
+            if (onSelectCallback) onSelectCallback(opt);
+        });
+        choicesContainer.appendChild(btn);
+    });
+}
+
+export function hideChoices() {
+    if (choicesContainer) {
+        choicesContainer.innerHTML = '';
+        choicesContainer.style.display = 'none';
     }
 }
 

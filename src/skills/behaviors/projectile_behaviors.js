@@ -131,7 +131,10 @@ export const projectileBehaviors = {
 
                 // On Enemy Hit Effect
                 proj.onHitEnemy = function (enemy, gameInstance) {
-                    enemy.takeDamage(this.damage, params.damageColor, this.aetherCharge);
+                    // Critical hit roll
+                    const isCrit = this.critChance > 0 && Math.random() < this.critChance;
+                    const finalDamage = isCrit ? this.damage * (this.critMultiplier || 2.0) : this.damage;
+                    enemy.takeDamage(finalDamage, params.damageColor, this.aetherCharge, isCrit);
                     // Expanding Circle Effect (Explosion) - Small & Light shake
                     spawnExplosion(gameInstance, this.x + this.w / 2, this.y + this.h / 2, params.color || 'orange', 0.25, 0.1);
 
@@ -193,7 +196,7 @@ export const projectileBehaviors = {
     },
 
     'crimson_cross': (user, game, params) => {
-        // Two slashes crossed in an X shape
+        // Two slashes crossed in an X shape - Staggered with Impact Effects
         let baseRotation = 0;
         let offsetX = 0;
         let offsetY = 0;
@@ -207,23 +210,59 @@ export const projectileBehaviors = {
         const spawnX = user.x + user.width / 2 + offsetX;
         const spawnY = user.y + user.height / 2 + offsetY;
 
-        // Slash 1: +45 degrees
-        spawnProjectile(game, spawnX, spawnY, 0, 0, {
-            ...params,
-            vx: 0, vy: 0,
-            rotation: baseRotation + Math.PI / 4,
-            fixedOrientation: true,
-            noShake: true
-        });
+        const sequence = [
+            { delay: 0, rot: Math.PI / 4, color: 'rgba(128, 0, 0, 0.5)' }, // Crimson variant
+            { delay: 0.1, rot: -Math.PI / 4, color: 'rgba(200, 0, 0, 0.3)' } // Slightly brighter crimson
+        ];
 
-        // Slash 2: -45 degrees (Delayed)
-        spawnProjectile(game, spawnX, spawnY, 0, 0, {
-            ...params,
-            vx: 0, vy: 0,
-            rotation: baseRotation - Math.PI / 4,
-            fixedOrientation: true,
-            noShake: true,
-            startDelay: 0.1 // 0.1s interval requested
+        sequence.forEach((strike) => {
+            game.animations.push({
+                type: 'logic',
+                life: strike.delay + 0.05,
+                timer: strike.delay,
+                update: function (dt) {
+                    this.timer -= dt;
+                    if (this.timer <= 0 && !this.executed) {
+                        this.executed = true;
+
+                        // 1. Initial Impact Shake - REMOVED per user request
+                        // game.camera.shake(0.1, 4); 
+
+                        // 2. Spawn Slash
+                        const finalRotation = baseRotation + strike.rot;
+                        spawnProjectile(game, spawnX, spawnY, 0, 0, {
+                            ...params,
+                            rotation: finalRotation,
+                            fixedOrientation: true,
+                            noShake: true,
+                            noHitParticles: true
+                        });
+
+                        // 3. Shockwave Ring (Matching crimson color)
+                        game.animations.push({
+                            type: 'ring',
+                            x: spawnX, y: spawnY,
+                            radius: 10,
+                            maxRadius: 80,
+                            width: 25,
+                            life: 0.25,
+                            maxLife: 0.25,
+                            color: strike.color
+                        });
+
+                        // 4. Linear Particle Diffusion along the slash line
+                        const span = params.height || 100;
+                        for (let i = 0; i < 12; i++) {
+                            const pDist = (Math.random() - 0.5) * span;
+                            // Offset along the rotated slash axis (local Y axis in global space)
+                            const px = spawnX + Math.cos(finalRotation + Math.PI / 2) * pDist;
+                            const py = spawnY + Math.sin(finalRotation + Math.PI / 2) * pDist;
+
+                            game.spawnParticles(px, py, 1, params.damageColor || '#800000');
+                        }
+                    }
+                }
+            });
         });
     },
 
@@ -390,8 +429,10 @@ export const projectileBehaviors = {
                 },
 
                 onHitEnemy: function (enemy, gameInstance) {
-                    // 1. Deal Initial Hit
-                    enemy.takeDamage(this.damage, this.damageColor, this.aetherCharge);
+                    // 1. Deal Initial Hit (with crit)
+                    const isCrit = this.critChance > 0 && Math.random() < this.critChance;
+                    const finalDamage = isCrit ? this.damage * (this.critMultiplier || 2.0) : this.damage;
+                    enemy.takeDamage(finalDamage, this.damageColor, this.aetherCharge, isCrit);
                     spawnBounceSparkImpact(gameInstance, this.x, this.y, params);
 
                     // 2. Spawn DoT Logic Object (if tickCount > 0)
@@ -779,9 +820,11 @@ export const projectileBehaviors = {
 
                 // If never hit or interval passed
                 if (timeSinceLast === undefined || timeSinceLast >= this.tickInterval) {
-                    // Deal Damage
-                    enemy.takeDamage(this.damage, null, this.aetherCharge);
-                    gameInstance.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, 5, 'red');
+                    // Deal Damage (with crit)
+                    const isCrit = this.critChance > 0 && Math.random() < this.critChance;
+                    const finalDamage = isCrit ? this.damage * (this.critMultiplier || 2.0) : this.damage;
+                    enemy.takeDamage(finalDamage, null, this.aetherCharge, isCrit);
+                    gameInstance.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, isCrit ? 8 : 5, isCrit ? '#FFD700' : 'red');
 
                     // Apply Status
                     if (this.statusEffect && (!this.statusChance || Math.random() < this.statusChance)) {
@@ -828,7 +871,6 @@ export const projectileBehaviors = {
             life: params.life || 5.0,
             shape: 'tornado',
             noShake: true,
-            spriteSheet: 'assets/tornado.png',
             spriteSheet: 'assets/tornado.png',
             noTrail: true, // Ensure no orange trails
             damageColor: params.damageColor, // Pass damageColor
@@ -882,9 +924,9 @@ export const projectileBehaviors = {
                 }
 
                 // Drag (Move with Tornado)
-                // Must be slightly faster than tornado speed (800) to keep them inside
-                const dragStrength = 900.0; // Px/sec (Increased from ~120)
+                // Match tornado speed exactly to keep them inside
                 const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                const dragStrength = speed;
                 if (speed > 1) {
                     const dragX = (this.vx / speed) * dragStrength * deltaTime;
                     const dragY = (this.vy / speed) * dragStrength * deltaTime;
@@ -902,7 +944,9 @@ export const projectileBehaviors = {
                 // Periodic Damage
                 if (now - lastHit > interval) {
                     this.hitTimers.set(enemy.id, now);
-                    enemy.takeDamage(this.damage, this.damageColor, this.aetherCharge);
+                    const isCrit = this.critChance > 0 && Math.random() < this.critChance;
+                    const finalDamage = isCrit ? this.damage * (this.critMultiplier || 2.0) : this.damage;
+                    enemy.takeDamage(finalDamage, this.damageColor, this.aetherCharge, isCrit);
 
                     // Optional: White wind hit particle
                     if (Math.random() < 0.5) {
@@ -1133,8 +1177,10 @@ export const projectileBehaviors = {
                 // Increment hit count for this enemy
                 this.hitCounts[enemy.id] = (this.hitCounts[enemy.id] || 0) + 1;
 
-                // 1. Damage
-                enemy.takeDamage(this.damage, this.damageColor, this.aetherCharge);
+                // 1. Damage (with crit)
+                const isCrit_cl = this.critChance > 0 && Math.random() < this.critChance;
+                const finalDamage_cl = isCrit_cl ? this.damage * (this.critMultiplier || 2.0) : this.damage;
+                enemy.takeDamage(finalDamage_cl, this.damageColor, this.aetherCharge, isCrit_cl);
 
                 // 2. Visual Burst
                 // 2. Visual Burst
