@@ -36,9 +36,13 @@ export const barrageBehaviors = {
                     let nx = 0, ny = 0; // Normal vector for spacing
 
                     if (user.facing === 'left') { baseVx = -speed; ny = 1; }
-                    if (user.facing === 'right') { baseVx = speed; ny = 1; }
-                    if (user.facing === 'up') { baseVy = -speed; nx = 1; }
-                    if (user.facing === 'down') { baseVy = speed; nx = 1; }
+                    else if (user.facing === 'right') { baseVx = speed; ny = 1; }
+                    else if (user.facing === 'up') { baseVy = -speed; nx = 1; }
+                    else if (user.facing === 'down') { baseVy = speed; nx = 1; }
+                    else if (user.facing === 'up-left') { baseVx = -speed * 0.707; baseVy = -speed * 0.707; nx = 0.707; ny = -0.707; }
+                    else if (user.facing === 'up-right') { baseVx = speed * 0.707; baseVy = -speed * 0.707; nx = 0.707; ny = 0.707; }
+                    else if (user.facing === 'down-left') { baseVx = -speed * 0.707; baseVy = speed * 0.707; nx = 0.707; ny = -0.707; }
+                    else if (user.facing === 'down-right') { baseVx = speed * 0.707; baseVy = speed * 0.707; nx = 0.707; ny = 0.707; }
 
                     for (let i = 0; i < perWave; i++) {
                         // Offset
@@ -52,17 +56,12 @@ export const barrageBehaviors = {
                         // Spread Angle
                         const angleNoise = ((Math.random() - 0.5) * spread) * (Math.PI / 180);
 
-                        // Rotate Velocity
-                        let vx = baseVx;
-                        let vy = baseVy;
-
-                        if (baseVx !== 0) {
-                            vx = baseVx * Math.cos(angleNoise);
-                            vy = baseVx * Math.sin(angleNoise); // Correct rotation logic for horiz
-                        } else {
-                            vx = baseVy * Math.sin(angleNoise); // Rotated vector from vertical
-                            vy = baseVy * Math.cos(angleNoise);
-                        }
+                        // Rotate Velocity using universal angle calculation
+                        const baseAngle = Math.atan2(baseVy, baseVx);
+                        const finalAngle = baseAngle + angleNoise;
+                        const baseSpeed = Math.sqrt(baseVx * baseVx + baseVy * baseVy);
+                        let vx = Math.cos(finalAngle) * baseSpeed;
+                        let vy = Math.sin(finalAngle) * baseSpeed;
 
                         const waveParams = { ...params };
                         if (baseVy !== 0 && params.width && params.height) {

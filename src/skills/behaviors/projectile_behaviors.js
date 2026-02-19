@@ -8,19 +8,26 @@ export const projectileBehaviors = {
         let h = params.height || params.size || 10;
 
         // Facing Logic
-        if (user.facing === 'left') vx = -params.speed;
-        if (user.facing === 'right') vx = params.speed;
-        if (user.facing === 'up') {
-            vy = -params.speed;
-            if (!params.fixedOrientation && params.width && params.height) { let temp = w; w = h; h = temp; }
-        }
-        if (user.facing === 'down') {
-            vy = params.speed;
+        // Facing Logic
+        let dirX = 0, dirY = 0;
+        if (user.facing === 'left') dirX = -1;
+        else if (user.facing === 'right') dirX = 1;
+        else if (user.facing === 'up') dirY = -1;
+        else if (user.facing === 'down') dirY = 1;
+        else if (user.facing === 'up-left') { dirX = -0.707; dirY = -0.707; }
+        else if (user.facing === 'up-right') { dirX = 0.707; dirY = -0.707; }
+        else if (user.facing === 'down-left') { dirX = -0.707; dirY = 0.707; }
+        else if (user.facing === 'down-right') { dirX = 0.707; dirY = 0.707; }
+
+        vx = dirX * params.speed;
+        vy = dirY * params.speed;
+
+        if (dirY !== 0 && dirX === 0) {
             if (!params.fixedOrientation && params.width && params.height) { let temp = w; w = h; h = temp; }
         }
 
         const projParams = { ...params };
-        if (user.facing === 'up' || user.facing === 'down') {
+        if (dirY !== 0 && dirX === 0) {
             projParams.width = w;
             projParams.height = h;
         }
@@ -34,19 +41,15 @@ export const projectileBehaviors = {
         let spawnY = user.y + user.height / 2;
 
         // Apply Offsets based on facing
-        if (user.facing === 'left') {
-            spawnX -= forward;
-            spawnY += side;
-        } else if (user.facing === 'right') {
-            spawnX += forward;
-            spawnY += side;
-        } else if (user.facing === 'up') {
-            spawnY -= forward;
-            spawnX += side;
-        } else if (user.facing === 'down') {
-            spawnY += forward;
-            spawnX += side;
-        }
+        // Apply Offsets based on facing
+        if (user.facing === 'left') { spawnX -= forward; spawnY += side; }
+        else if (user.facing === 'right') { spawnX += forward; spawnY += side; }
+        else if (user.facing === 'up') { spawnY -= forward; spawnX += side; }
+        else if (user.facing === 'down') { spawnY += forward; spawnX += side; }
+        else if (user.facing === 'up-left') { spawnX -= forward * 0.707; spawnY -= forward * 0.707; }
+        else if (user.facing === 'up-right') { spawnX += forward * 0.707; spawnY -= forward * 0.707; }
+        else if (user.facing === 'down-left') { spawnX -= forward * 0.707; spawnY += forward * 0.707; }
+        else if (user.facing === 'down-right') { spawnX += forward * 0.707; spawnY += forward * 0.707; }
 
         spawnY += height; // Absolute height offset (usually negative for "up")
 
@@ -61,11 +64,16 @@ export const projectileBehaviors = {
         const randomSpeed = params.randomSpeed || 0;
 
         // Determine base angle
+        // Determine base angle
         let baseAngle = 0;
         if (user.facing === 'right') baseAngle = 0;
-        if (user.facing === 'down') baseAngle = Math.PI / 2;
-        if (user.facing === 'left') baseAngle = Math.PI;
-        if (user.facing === 'up') baseAngle = -Math.PI / 2;
+        else if (user.facing === 'down') baseAngle = Math.PI / 2;
+        else if (user.facing === 'left') baseAngle = Math.PI;
+        else if (user.facing === 'up') baseAngle = -Math.PI / 2;
+        else if (user.facing === 'up-right') baseAngle = -Math.PI / 4;
+        else if (user.facing === 'up-left') baseAngle = -3 * Math.PI / 4;
+        else if (user.facing === 'down-right') baseAngle = Math.PI / 4;
+        else if (user.facing === 'down-left') baseAngle = 3 * Math.PI / 4;
 
         // Convert spread to radians
         const spreadRad = angleSpread * (Math.PI / 180);
@@ -178,9 +186,13 @@ export const projectileBehaviors = {
         const forward = params.forwardOffset || 40; // Default distance
 
         if (user.facing === 'right') { rotation = 0; offsetX = forward; }
-        if (user.facing === 'down') { rotation = Math.PI / 2; offsetY = forward; }
-        if (user.facing === 'left') { rotation = Math.PI; offsetX = -forward; }
-        if (user.facing === 'up') { rotation = -Math.PI / 2; offsetY = -forward; }
+        else if (user.facing === 'down') { rotation = Math.PI / 2; offsetY = forward; }
+        else if (user.facing === 'left') { rotation = Math.PI; offsetX = -forward; }
+        else if (user.facing === 'up') { rotation = -Math.PI / 2; offsetY = -forward; }
+        else if (user.facing === 'up-right') { rotation = -Math.PI / 4; offsetX = forward * 0.7; offsetY = -forward * 0.7; }
+        else if (user.facing === 'up-left') { rotation = -3 * Math.PI / 4; offsetX = -forward * 0.7; offsetY = -forward * 0.7; }
+        else if (user.facing === 'down-right') { rotation = Math.PI / 4; offsetX = forward * 0.7; offsetY = forward * 0.7; }
+        else if (user.facing === 'down-left') { rotation = 3 * Math.PI / 4; offsetX = -forward * 0.7; offsetY = forward * 0.7; }
 
         const spawnX = user.x + user.width / 2 + offsetX;
         const spawnY = user.y + user.height / 2 + offsetY;
@@ -203,9 +215,13 @@ export const projectileBehaviors = {
         const forward = params.forwardOffset || 40;
 
         if (user.facing === 'right') { baseRotation = 0; offsetX = forward; }
-        if (user.facing === 'down') { baseRotation = Math.PI / 2; offsetY = forward; }
-        if (user.facing === 'left') { baseRotation = Math.PI; offsetX = -forward; }
-        if (user.facing === 'up') { baseRotation = -Math.PI / 2; offsetY = -forward; }
+        else if (user.facing === 'down') { baseRotation = Math.PI / 2; offsetY = forward; }
+        else if (user.facing === 'left') { baseRotation = Math.PI; offsetX = -forward; }
+        else if (user.facing === 'up') { baseRotation = -Math.PI / 2; offsetY = -forward; }
+        else if (user.facing === 'up-right') { baseRotation = -Math.PI / 4; offsetX = forward * 0.7; offsetY = -forward * 0.7; }
+        else if (user.facing === 'up-left') { baseRotation = -3 * Math.PI / 4; offsetX = -forward * 0.7; offsetY = -forward * 0.7; }
+        else if (user.facing === 'down-right') { baseRotation = Math.PI / 4; offsetX = forward * 0.7; offsetY = forward * 0.7; }
+        else if (user.facing === 'down-left') { baseRotation = 3 * Math.PI / 4; offsetX = -forward * 0.7; offsetY = forward * 0.7; }
 
         const spawnX = user.x + user.width / 2 + offsetX;
         const spawnY = user.y + user.height / 2 + offsetY;
@@ -319,9 +335,13 @@ export const projectileBehaviors = {
         // Directional Spread Fire
         let baseAngle = 0;
         if (user.facing === 'left') baseAngle = Math.PI;
-        if (user.facing === 'right') baseAngle = 0;
-        if (user.facing === 'up') baseAngle = -Math.PI / 2;
-        if (user.facing === 'down') baseAngle = Math.PI / 2;
+        else if (user.facing === 'right') baseAngle = 0;
+        else if (user.facing === 'up') baseAngle = -Math.PI / 2;
+        else if (user.facing === 'down') baseAngle = Math.PI / 2;
+        else if (user.facing === 'up-right') baseAngle = -Math.PI / 4;
+        else if (user.facing === 'up-left') baseAngle = -3 * Math.PI / 4;
+        else if (user.facing === 'down-right') baseAngle = Math.PI / 4;
+        else if (user.facing === 'down-left') baseAngle = 3 * Math.PI / 4;
 
         const count = params.count || 5; // Default 5
         const spreadDeg = params.angleSpread || 15; // Default 15 degrees
@@ -484,9 +504,13 @@ export const projectileBehaviors = {
         let vx = 0, vy = 0;
         const speed = params.speed || 600;
         if (user.facing === 'left') vx = -speed;
-        if (user.facing === 'right') vx = speed;
-        if (user.facing === 'up') vy = -speed;
-        if (user.facing === 'down') vy = speed;
+        else if (user.facing === 'right') vx = speed;
+        else if (user.facing === 'up') vy = -speed;
+        else if (user.facing === 'down') vy = speed;
+        else if (user.facing === 'up-right') { vx = speed * 0.707; vy = -speed * 0.707; }
+        else if (user.facing === 'up-left') { vx = -speed * 0.707; vy = -speed * 0.707; }
+        else if (user.facing === 'down-right') { vx = speed * 0.707; vy = speed * 0.707; }
+        else if (user.facing === 'down-left') { vx = -speed * 0.707; vy = speed * 0.707; }
 
         const w = params.width || 48;
         const h = params.height || 48;
@@ -624,9 +648,13 @@ export const projectileBehaviors = {
         // Calculate initial velocity based on facing
         let directionX = 0, directionY = 0;
         if (user.facing === 'left') directionX = -1;
-        if (user.facing === 'right') directionX = 1;
-        if (user.facing === 'up') directionY = -1;
-        if (user.facing === 'down') directionY = 1;
+        else if (user.facing === 'right') directionX = 1;
+        else if (user.facing === 'up') directionY = -1;
+        else if (user.facing === 'down') directionY = 1;
+        else if (user.facing === 'up-right') { directionX = 0.707; directionY = -0.707; }
+        else if (user.facing === 'up-left') { directionX = -0.707; directionY = -0.707; }
+        else if (user.facing === 'down-right') { directionX = 0.707; directionY = 0.707; }
+        else if (user.facing === 'down-left') { directionX = -0.707; directionY = 0.707; }
 
         // Initial Speed setup
         const initialSpeed = params.speed || 800; // Fast out
@@ -848,18 +876,26 @@ export const projectileBehaviors = {
         let vx = 0, vy = 0;
         const speed = params.speed || 100;
 
-        if (user.facing === 'left') vx = -speed;
-        if (user.facing === 'right') vx = speed;
-        if (user.facing === 'up') vy = -speed;
-        if (user.facing === 'down') vy = speed;
+        if (user.facing === 'left') { vx = -speed; }
+        else if (user.facing === 'right') { vx = speed; }
+        else if (user.facing === 'up') { vy = -speed; }
+        else if (user.facing === 'down') { vy = speed; }
+        else if (user.facing === 'up-left') { vx = -speed * 0.707; vy = -speed * 0.707; }
+        else if (user.facing === 'up-right') { vx = speed * 0.707; vy = -speed * 0.707; }
+        else if (user.facing === 'down-left') { vx = -speed * 0.707; vy = speed * 0.707; }
+        else if (user.facing === 'down-right') { vx = speed * 0.707; vy = speed * 0.707; }
 
         // Spawn offset
         let spawnX = user.x + user.width / 2;
         let spawnY = user.y + user.height / 2;
         if (user.facing === 'left') spawnX -= 30;
-        if (user.facing === 'right') spawnX += 30;
-        if (user.facing === 'up') spawnY -= 30;
-        if (user.facing === 'down') spawnY += 30;
+        else if (user.facing === 'right') spawnX += 30;
+        else if (user.facing === 'up') spawnY -= 30;
+        else if (user.facing === 'down') spawnY += 30;
+        else if (user.facing === 'up-left') { spawnX -= 21; spawnY -= 21; }
+        else if (user.facing === 'up-right') { spawnX += 21; spawnY -= 21; }
+        else if (user.facing === 'down-left') { spawnX -= 21; spawnY += 21; }
+        else if (user.facing === 'down-right') { spawnX += 21; spawnY += 21; }
 
         // Ensure 1:1 Aspect Ratio (Square)
         const size = Math.max(params.width || 90, params.height || 90);
@@ -1098,7 +1134,11 @@ export const projectileBehaviors = {
         if (user.facing === 'left') vx = -speed;
         else if (user.facing === 'up') vy = -speed;
         else if (user.facing === 'down') vy = speed;
-        else vx = speed; // Default to right for 'right' or fallback
+        else if (user.facing === 'up-left') { vx = -speed * 0.707; vy = -speed * 0.707; }
+        else if (user.facing === 'up-right') { vx = speed * 0.707; vy = -speed * 0.707; }
+        else if (user.facing === 'down-left') { vx = -speed * 0.707; vy = speed * 0.707; }
+        else if (user.facing === 'down-right') { vx = speed * 0.707; vy = speed * 0.707; }
+        else vx = speed; // Default to right
 
         // Spawn origin
         const spawnX = user.x + user.width / 2;

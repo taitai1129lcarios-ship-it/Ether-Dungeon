@@ -194,6 +194,7 @@ function drawMiniMap(ctx, game, screenWidth, screenHeight) {
 
             // Check for Staircase
             let isStaircase = false;
+            let isShop = false;
             // Check room grid for staircase type
             if (map.roomGrid && map.roomGrid[y] && map.roomGrid[y][x] !== -1) {
                 const roomId = map.roomGrid[y][x];
@@ -206,10 +207,16 @@ function drawMiniMap(ctx, game, screenWidth, screenHeight) {
                         isStaircase = true;
                     }
                 }
+                if (room && room.type === 'shop') {
+                    isShop = true;
+                }
             }
 
             if (isStaircase) {
                 ctx.fillStyle = '#00ffff'; // Cyan for stairs
+                ctx.fillRect(mmX + x * scale, mmY + y * scale, scale, scale);
+            } else if (isShop && tile === 0) {
+                ctx.fillStyle = 'rgba(255, 200, 0, 0.35)'; // Gold tint for shop floor
                 ctx.fillRect(mmX + x * scale, mmY + y * scale, scale, scale);
             } else if (tile === 1) {
                 // Wall
@@ -230,6 +237,18 @@ function drawMiniMap(ctx, game, screenWidth, screenHeight) {
                 // Draw a small rect or circle
                 ctx.fillRect(mmX + sX, mmY + sY, Math.max(2, scale), Math.max(2, scale));
             }
+        });
+    }
+
+    // Draw Shop NPCs
+    if (game.shopNPCs) {
+        game.shopNPCs.forEach(npc => {
+            const sX = (npc.x / map.tileSize) * scale;
+            const sY = (npc.y / map.tileSize) * scale;
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(mmX + sX + scale / 2, mmY + sY + scale / 2, Math.max(3, scale * 1.5), 0, Math.PI * 2);
+            ctx.fill();
         });
     }
 
@@ -541,3 +560,81 @@ function updateAetherGauge(current, max) {
         }
     }
 }
+
+// --- Shop UI ---
+const RARITY_BADGE = {
+    common: { label: 'コモン', color: '#aaaaaa' },
+    rare: { label: 'レア', color: '#4488ff' },
+    epic: { label: 'エピック', color: '#cc44ff' }
+};
+
+export function showShopUI(items, onBuyCallback, onCloseCallback) {
+    const modal = document.getElementById('shop-modal');
+    const cardsEl = document.getElementById('shop-cards');
+    if (!modal || !cardsEl) return;
+
+    const game = window._gameInstance;
+    const currency = game ? game.player.currency : 0;
+
+    cardsEl.innerHTML = '';
+
+    items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'shop-card' + (item.sold ? ' shop-card-sold' : '');
+
+        // Rarity badge
+        const badge = document.createElement('div');
+        badge.className = 'shop-rarity-badge';
+        const r = RARITY_BADGE[item.rarity] || RARITY_BADGE.common;
+        badge.textContent = r.label;
+        badge.style.background = r.color;
+        card.appendChild(badge);
+
+        // Name
+        const name = document.createElement('div');
+        name.className = 'shop-item-name';
+        name.textContent = item.name;
+        card.appendChild(name);
+
+        // Description
+        const desc = document.createElement('div');
+        desc.className = 'shop-item-desc';
+        desc.textContent = item.description || '';
+        card.appendChild(desc);
+
+        // Price
+        const priceRow = document.createElement('div');
+        priceRow.className = 'shop-price-row';
+        priceRow.innerHTML = `<span class="shop-price-icon">◈</span><span class="shop-price-value">${item.price}</span>`;
+        card.appendChild(priceRow);
+
+        // Buy button
+        const btn = document.createElement('button');
+        btn.className = 'shop-buy-btn';
+        if (item.sold) {
+            btn.textContent = '売り切れ';
+            btn.disabled = true;
+            btn.classList.add('shop-buy-btn-disabled');
+        } else if (currency < item.price) {
+            btn.textContent = 'シャード不足';
+            btn.disabled = true;
+            btn.classList.add('shop-buy-btn-disabled');
+        } else {
+            btn.textContent = '購入';
+            btn.addEventListener('click', () => {
+                if (onBuyCallback) onBuyCallback(item);
+            });
+        }
+        card.appendChild(btn);
+
+        cardsEl.appendChild(card);
+    });
+
+    modal.style.display = 'flex';
+}
+
+export function hideShopUI() {
+    const modal = document.getElementById('shop-modal');
+    if (modal) modal.style.display = 'none';
+}
+

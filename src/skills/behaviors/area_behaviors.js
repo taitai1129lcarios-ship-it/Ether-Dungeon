@@ -130,10 +130,15 @@ export const areaBehaviors = {
         let dx = 0;
         let dy = 0;
         // user.facing is 'left', 'right', 'up', 'down'
+        // user.facing is 'left', 'right', 'up', 'down', or diagonal
         if (user.facing === 'left') dx = -1;
-        if (user.facing === 'right') dx = 1;
-        if (user.facing === 'up') dy = -1;
-        if (user.facing === 'down') dy = 1;
+        else if (user.facing === 'right') dx = 1;
+        else if (user.facing === 'up') dy = -1;
+        else if (user.facing === 'down') dy = 1;
+        else if (user.facing === 'up-left') { dx = -0.707; dy = -0.707; }
+        else if (user.facing === 'up-right') { dx = 0.707; dy = -0.707; }
+        else if (user.facing === 'down-left') { dx = -0.707; dy = 0.707; }
+        else if (user.facing === 'down-right') { dx = 0.707; dy = 0.707; }
 
         // Fallback if no facing (shouldn't happen)
         if (dx === 0 && dy === 0) dy = 1;
@@ -866,9 +871,13 @@ export const areaBehaviors = {
         let dy = 0;
         // user.facing is 'left', 'right', 'up', 'down'
         if (user.facing === 'left') dx = -1;
-        if (user.facing === 'right') dx = 1;
-        if (user.facing === 'up') dy = -1;
-        if (user.facing === 'down') dy = 1;
+        else if (user.facing === 'right') dx = 1;
+        else if (user.facing === 'up') dy = -1;
+        else if (user.facing === 'down') dy = 1;
+        else if (user.facing === 'up-left') { dx = -0.707; dy = -0.707; }
+        else if (user.facing === 'up-right') { dx = 0.707; dy = -0.707; }
+        else if (user.facing === 'down-left') { dx = -0.707; dy = 0.707; }
+        else if (user.facing === 'down-right') { dx = 0.707; dy = 0.707; }
 
         // Fallback if no facing
         if (dx === 0 && dy === 0) dy = 1;

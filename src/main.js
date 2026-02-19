@@ -1,7 +1,7 @@
 import { InputHandler, Camera, Entity } from './utils.js';
 import { Map } from './map.js';
 import { Player } from './player.js';
-import { Enemy, Slime, Bat, Goblin, SkeletonArcher, Chest, Statue, BloodAltar } from './entities.js';
+import { Enemy, Slime, Bat, Goblin, SkeletonArcher, Chest, Statue, BloodAltar, ShopNPC } from './entities.js';
 import { createSkill } from './skills/index.js';
 import { drawUI, showSkillSelection, hideSkillSelection, showBlessingSelection, hideBlessingSelection, drawDialogue, hideDialogue, initSettingsUI } from './ui.js';
 import { initInventory, renderInventory, resetInventorySelection } from './inventory.js';
@@ -65,6 +65,18 @@ class Game {
 
         this.loop = this.loop.bind(this);
 
+        // Expose game instance for UI access
+        window._gameInstance = this;
+
+        // Shop close button
+        const shopCloseBtn = document.getElementById('shop-close-btn');
+        if (shopCloseBtn) {
+            shopCloseBtn.addEventListener('click', () => {
+                import('./ui.js').then(ui => ui.hideShopUI());
+                this.gameState = 'PLAYING';
+            });
+        }
+
         // Responsive Resizing
         window.addEventListener('resize', () => this.handleResize());
         this.handleResize(); // Initial call
@@ -116,7 +128,8 @@ class Game {
         return this.showStairPrompt ||
             this.chests.some(c => c.showPrompt) ||
             this.statues.some(s => s.showPrompt) ||
-            this.bloodAltars.some(a => a.showPrompt);
+            this.bloodAltars.some(a => a.showPrompt) ||
+            this.shopNPCs.some(n => n.showPrompt);
     }
 
     init(isNextFloor = false) {
@@ -177,6 +190,7 @@ class Game {
         this.chests = [];
         this.statues = [];
         this.bloodAltars = [];
+        this.shopNPCs = [];
         this.activeStatue = null;
         this.activeAltar = null;
         this.entities = [];
@@ -205,6 +219,13 @@ class Game {
                 const sx = (room.x + Math.floor(room.w / 2)) * this.map.tileSize;
                 const sy = (room.y + Math.floor(room.h / 2)) * this.map.tileSize;
                 this.bloodAltars.push(new BloodAltar(this, sx, sy));
+                continue;
+            }
+
+            if (room.type === 'shop') {
+                const sx = (room.x + Math.floor(room.w / 2)) * this.map.tileSize;
+                const sy = (room.y + Math.floor(room.h / 2)) * this.map.tileSize;
+                this.shopNPCs.push(new ShopNPC(this, sx, sy));
                 continue;
             }
         }
@@ -513,6 +534,11 @@ class Game {
             return;
         }
 
+        // Shop Pause
+        if (this.gameState === 'SHOP') {
+            return;
+        }
+
         if (this.showInventory || this.isPaused) return; // Pause game when inventory or modal is open
 
         if (this.isGameOver) {
@@ -543,7 +569,14 @@ class Game {
                 currentRoom.active = true;
                 this.map.closeRoom(currentRoom);
 
-                // Spawn Enemies
+                // Spawn Enemies (Only in rooms large enough)
+                if (currentRoom.w < 10 || currentRoom.h < 10) {
+                    // Room too small — clear it immediately without spawning enemies
+                    currentRoom.active = false;
+                    currentRoom.cleared = true;
+                    this.map.openRoom(currentRoom);
+                    return;
+                }
                 const enemyCount = Math.floor(Math.random() * 3) + 2; // 2-4 enemies
                 for (let i = 0; i < enemyCount; i++) {
                     // Safe spawn area: Reduce range by 1 extra tile (w-3) to accommodate 64px Goblins
@@ -686,6 +719,26 @@ class Game {
                 altar.showPrompt = false;
             }
         });
+
+        // Update Shop NPCs (Interaction)
+        this.shopNPCs.forEach(npc => {
+            npc.update(dt);
+            const pcx = this.player.x + this.player.width / 2;
+            const pcy = this.player.y + this.player.height / 2;
+            const ncx = npc.x + npc.width / 2;
+            const ncy = npc.y + npc.height / 2;
+            const dist = Math.sqrt((pcx - ncx) ** 2 + (pcy - ncy) ** 2);
+            if (dist < 80) {
+                npc.showPrompt = true;
+                if (this.input.isDown('Space') && !this.input.spacePressed) {
+                    this.input.spacePressed = true;
+                    npc.use();
+                }
+            } else {
+                npc.showPrompt = false;
+            }
+        });
+        if (!this.input.isDown('Space')) this.input.spacePressed = false;
 
         // Portal Particles (Stairs)
         const stairRoom = this.map.rooms.find(r => r.type === 'staircase');
@@ -1100,6 +1153,16 @@ class Game {
                 renderList.push({
                     z: altar.y + altar.height,
                     draw: () => altar.draw(this.ctx)
+                });
+            }
+        });
+
+        // 1.7 Shop NPCs
+        this.shopNPCs.forEach(npc => {
+            if (this.camera.isVisible(npc.x, npc.y, npc.width, npc.height)) {
+                renderList.push({
+                    z: npc.y + npc.height,
+                    draw: () => npc.draw(this.ctx)
                 });
             }
         });

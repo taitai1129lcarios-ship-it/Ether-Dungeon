@@ -168,25 +168,30 @@ export class Player extends Entity {
             moving = false;
         } else {
             const speed = this.actualSpeed;
-            if (this.game.input.isDown('ArrowUp') || this.game.input.isDown('KeyW')) {
-                this.vy = -speed;
-                this.facing = 'up';
+            let moveX = 0;
+            let moveY = 0;
+
+            if (this.game.input.isDown('ArrowUp') || this.game.input.isDown('KeyW')) moveY -= 1;
+            if (this.game.input.isDown('ArrowDown') || this.game.input.isDown('KeyS')) moveY += 1;
+            if (this.game.input.isDown('ArrowLeft') || this.game.input.isDown('KeyA')) moveX -= 1;
+            if (this.game.input.isDown('ArrowRight') || this.game.input.isDown('KeyD')) moveX += 1;
+
+            if (moveX !== 0 || moveY !== 0) {
                 moving = true;
-            }
-            if (this.game.input.isDown('ArrowDown') || this.game.input.isDown('KeyS')) {
-                this.vy = speed;
-                this.facing = 'down';
-                moving = true;
-            }
-            if (this.game.input.isDown('ArrowLeft') || this.game.input.isDown('KeyA')) {
-                this.vx = -speed;
-                this.facing = 'left';
-                moving = true;
-            }
-            if (this.game.input.isDown('ArrowRight') || this.game.input.isDown('KeyD')) {
-                this.vx = speed;
-                this.facing = 'right';
-                moving = true;
+                // Normalize for diagonal movement
+                const dist = Math.sqrt(moveX * moveX + moveY * moveY);
+                this.vx = (moveX / dist) * speed;
+                this.vy = (moveY / dist) * speed;
+
+                // Determine 8 directions for facing
+                if (moveX > 0 && moveY === 0) this.facing = 'right';
+                else if (moveX < 0 && moveY === 0) this.facing = 'left';
+                else if (moveX === 0 && moveY > 0) this.facing = 'down';
+                else if (moveX === 0 && moveY < 0) this.facing = 'up';
+                else if (moveX > 0 && moveY > 0) this.facing = 'down-right';
+                else if (moveX > 0 && moveY < 0) this.facing = 'up-right';
+                else if (moveX < 0 && moveY > 0) this.facing = 'down-left';
+                else if (moveX < 0 && moveY < 0) this.facing = 'up-left';
             }
         }
 
@@ -203,14 +208,12 @@ export class Player extends Entity {
             this.frameTimer = 0;
         }
 
-        // Map facing to sprite row
+        // Map facing to sprite row (4 directions for sprite fallback)
         // JSON Order: 0-3 Down, 4-7 Left, 8-11 Right, 12-15 Up
-        switch (this.facing) {
-            case 'down': this.frameY = 0; break;
-            case 'left': this.frameY = 1; break;
-            case 'right': this.frameY = 2; break;
-            case 'up': this.frameY = 3; break;
-        }
+        if (this.facing.includes('down')) this.frameY = 0;
+        else if (this.facing.includes('up')) this.frameY = 3;
+        else if (this.facing.includes('left')) this.frameY = 1;
+        else if (this.facing.includes('right')) this.frameY = 2;
 
         // Decrease Dash Cooldown
         if (this.dashTimer > 0) {
@@ -296,10 +299,10 @@ export class Player extends Entity {
         // We need to map keys to slots to check for charge
         const inputMap = [
             { key: 'Space', slot: SkillType.NORMAL },
-            { key: 'KeyE', slot: 'primary1' },
-            { key: 'KeyQ', slot: 'primary2' },
+            { key: 'KeyM', slot: 'primary1' },
+            { key: 'KeyK', slot: 'primary2' },
             { key: 'KeyC', slot: SkillType.SECONDARY },
-            { key: 'KeyX', slot: SkillType.ULTIMATE }
+            { key: 'KeyL', slot: SkillType.ULTIMATE }
         ];
 
         let chargeInputDetected = false;
@@ -440,9 +443,13 @@ export class Player extends Entity {
         let hitH = this.height;
 
         if (this.facing === 'left') { hitX -= range; hitW = range; if (width) hitW = width; hitX = this.x - hitW; }
-        if (this.facing === 'right') { hitX += this.width; hitW = range; if (width) hitW = width; }
-        if (this.facing === 'up') { hitY -= range; hitH = range; if (height) hitH = height; hitY = this.y - hitH; }
-        if (this.facing === 'down') { hitY += this.height; hitH = range; if (height) hitH = height; }
+        else if (this.facing === 'right') { hitX += this.width; hitW = range; if (width) hitW = width; }
+        else if (this.facing === 'up') { hitY -= range; hitH = range; if (height) hitH = height; hitY = this.y - hitH; }
+        else if (this.facing === 'down') { hitY += this.height; hitH = range; if (height) hitH = height; }
+        else if (this.facing === 'up-left') { hitX -= range * 0.7; hitY -= range * 0.7; hitW = range; hitH = range; }
+        else if (this.facing === 'up-right') { hitX += this.width - range * 0.3; hitY -= range * 0.7; hitW = range; hitH = range; }
+        else if (this.facing === 'down-left') { hitX -= range * 0.7; hitY += this.height - range * 0.3; hitW = range; hitH = range; }
+        else if (this.facing === 'down-right') { hitX += this.width - range * 0.3; hitY += this.height - range * 0.3; hitW = range; hitH = range; }
 
         // Center alignment for perpendicular axis
         if (this.facing === 'left' || this.facing === 'right') {
@@ -520,6 +527,38 @@ export class Player extends Entity {
 
             ctx.fillRect(barX + 1, barY + 1, (barW - 2) * ratio, barH - 2);
         }
+
+        // Draw Direction Indicator (Triangle at feet)
+        {
+            const facingAngles = {
+                'right': 0,
+                'down-right': Math.PI / 4,
+                'down': Math.PI / 2,
+                'down-left': 3 * Math.PI / 4,
+                'left': Math.PI,
+                'up-left': -3 * Math.PI / 4,
+                'up': -Math.PI / 2,
+                'up-right': -Math.PI / 4,
+            };
+
+            const angle = facingAngles[this.facing] ?? 0;
+            const cx = this.x + this.width / 2;
+            const cy = this.y + this.height + 6; // Slightly below feet
+            const dist = 10; // Distance from feet center to tip
+            const size = 5;  // Half-width of triangle base
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(angle);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+            ctx.beginPath();
+            ctx.moveTo(dist + size, 0);      // Tip
+            ctx.lineTo(dist - size, -size);  // Base top
+            ctx.lineTo(dist - size, size);   // Base bottom
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
     }
 
     performDash() {
@@ -530,12 +569,20 @@ export class Player extends Entity {
         this.invulnerable = this.dashDuration + 0.1; // Slight invulnerability buffer
 
         // Dash Direction
-        this.dashVx = 0;
-        this.dashVy = 0;
-        if (this.facing === 'left') this.dashVx = -this.dashSpeed;
-        if (this.facing === 'right') this.dashVx = this.dashSpeed;
-        if (this.facing === 'up') this.dashVy = -this.dashSpeed;
-        if (this.facing === 'down') this.dashVy = this.dashSpeed;
+        let dashMoveX = 0;
+        let dashMoveY = 0;
+        if (this.facing === 'left') dashMoveX = -1;
+        else if (this.facing === 'right') dashMoveX = 1;
+        else if (this.facing === 'up') dashMoveY = -1;
+        else if (this.facing === 'down') dashMoveY = 1;
+        else if (this.facing === 'up-left') { dashMoveX = -1; dashMoveY = -1; }
+        else if (this.facing === 'up-right') { dashMoveX = 1; dashMoveY = -1; }
+        else if (this.facing === 'down-left') { dashMoveX = -1; dashMoveY = 1; }
+        else if (this.facing === 'down-right') { dashMoveX = 1; dashMoveY = 1; }
+
+        const dist = Math.sqrt(dashMoveX * dashMoveX + dashMoveY * dashMoveY);
+        this.dashVx = (dashMoveX / dist) * this.dashSpeed;
+        this.dashVy = (dashMoveY / dist) * this.dashSpeed;
 
         console.log("Dash!", this.dashVx, this.dashVy);
 

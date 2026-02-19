@@ -9,9 +9,13 @@ export const meleeBehaviors = {
 
         // Hardcoded facing logic matches the robust implementation we had
         if (user.facing === 'right') { startAngle = -Math.PI / 3; endAngle = Math.PI / 3; }
-        if (user.facing === 'left') { startAngle = 4 * Math.PI / 3; endAngle = 2 * Math.PI / 3; }
-        if (user.facing === 'up') { startAngle = 7 * Math.PI / 6; endAngle = 11 * Math.PI / 6; }
-        if (user.facing === 'down') { startAngle = Math.PI / 6; endAngle = 5 * Math.PI / 6; }
+        else if (user.facing === 'left') { startAngle = 4 * Math.PI / 3; endAngle = 2 * Math.PI / 3; }
+        else if (user.facing === 'up') { startAngle = 7 * Math.PI / 6; endAngle = 11 * Math.PI / 6; }
+        else if (user.facing === 'down') { startAngle = Math.PI / 6; endAngle = 5 * Math.PI / 6; }
+        else if (user.facing === 'up-right') { startAngle = -7 * Math.PI / 12; endAngle = -Math.PI / 12; }
+        else if (user.facing === 'up-left') { startAngle = 13 * Math.PI / 12; endAngle = 19 * Math.PI / 12; }
+        else if (user.facing === 'down-right') { startAngle = Math.PI / 12; endAngle = 7 * Math.PI / 12; }
+        else if (user.facing === 'down-left') { startAngle = 5 * Math.PI / 12; endAngle = 11 * Math.PI / 12; }
 
         // Randomly reverse the slash direction
         if (Math.random() < 0.5) {
