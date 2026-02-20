@@ -43,10 +43,17 @@ export class MapRenderer {
                     ctx.stroke();
                     ctx.strokeRect(tx, ty, this.map.tileSize, this.map.tileSize);
                 } else {
-                    ctx.fillStyle = '#222';
-                    ctx.fillRect(Math.floor(x * this.map.tileSize), Math.floor(y * this.map.tileSize), this.map.tileSize, this.map.tileSize);
-                    ctx.strokeStyle = '#2a2a2a';
-                    ctx.strokeRect(Math.floor(x * this.map.tileSize), Math.floor(y * this.map.tileSize), this.map.tileSize, this.map.tileSize);
+                    const px = Math.floor(x * this.map.tileSize);
+                    const py = Math.floor(y * this.map.tileSize);
+
+                    if (this.map.floorImage.complete && this.map.floorImage.naturalWidth !== 0) {
+                        ctx.drawImage(this.map.floorImage, px, py, this.map.tileSize, this.map.tileSize);
+                    } else {
+                        ctx.fillStyle = '#222';
+                        ctx.fillRect(px, py, this.map.tileSize, this.map.tileSize);
+                        ctx.strokeStyle = '#2a2a2a';
+                        ctx.strokeRect(px, py, this.map.tileSize, this.map.tileSize);
+                    }
                 }
             }
         }
@@ -117,11 +124,24 @@ export class MapRenderer {
 
     drawPath(path) {
         if (!path || path.length < 2) return;
-        for (let p of path) {
-            this.map.tiles[p.y][p.x] = 0;
-            if (p.x + 1 < this.map.width) this.map.tiles[p.y][p.x + 1] = 0;
-            if (p.y + 1 < this.map.height) this.map.tiles[p.y + 1][p.x] = 0;
-            if (p.x + 1 < this.map.width && p.y + 1 < this.map.height) this.map.tiles[p.y + 1][p.x + 1] = 0;
+        const fill2x2 = (x, y) => {
+            if (y >= 0 && y < this.map.height && x >= 0 && x < this.map.width) this.map.tiles[y][x] = 0;
+            if (y >= 0 && y < this.map.height && x + 1 >= 0 && x + 1 < this.map.width) this.map.tiles[y][x + 1] = 0;
+            if (y + 1 >= 0 && y + 1 < this.map.height && x >= 0 && x < this.map.width) this.map.tiles[y + 1][x] = 0;
+            if (y + 1 >= 0 && y + 1 < this.map.height && x + 1 >= 0 && x + 1 < this.map.width) this.map.tiles[y + 1][x + 1] = 0;
+        };
+
+        for (let i = 0; i < path.length; i++) {
+            const p = path[i];
+            fill2x2(p.x, p.y);
+
+            if (i > 0) {
+                const prev = path[i - 1];
+                if (Math.abs(p.x - prev.x) === 1 && Math.abs(p.y - prev.y) === 1) {
+                    fill2x2(prev.x, p.y);
+                    fill2x2(p.x, prev.y);
+                }
+            }
         }
 
         let startIndex = 0;

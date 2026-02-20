@@ -15,6 +15,7 @@ export class Map {
         this.rooms = [];
         this.roomGrid = [];
         this.wallImage = getCachedImage('assets/wall.png');
+        this.floorImage = getCachedImage('assets/floor.png');
         this.stairsImage = getCachedImage('assets/portal_stairs.png');
 
         // Initialize modules
@@ -57,20 +58,19 @@ export class Map {
                 shape: 'square'
             };
             this.placer.carveRoom(startRoom);
-            // Add 4 connectors (Middle of each side)
+            // Add 4 connectors (Center of each side, index 3 expands to 3-4 for 2-tile width)
             startRoom.connectors.push({ x: centerX + 3, y: centerY, dir: { x: 0, y: -1 }, used: false });
-            startRoom.connectors.push({ x: centerX + 4, y: centerY, dir: { x: 0, y: -1 }, used: false });
             startRoom.connectors.push({ x: centerX + 3, y: centerY + 7, dir: { x: 0, y: 1 }, used: false });
-            startRoom.connectors.push({ x: centerX + 4, y: centerY + 7, dir: { x: 0, y: 1 }, used: false });
             startRoom.connectors.push({ x: centerX, y: centerY + 3, dir: { x: -1, y: 0 }, used: false });
-            startRoom.connectors.push({ x: centerX, y: centerY + 4, dir: { x: -1, y: 0 }, used: false });
             startRoom.connectors.push({ x: centerX + 7, y: centerY + 3, dir: { x: 1, y: 0 }, used: false });
-            startRoom.connectors.push({ x: centerX + 7, y: centerY + 4, dir: { x: 1, y: 0 }, used: false });
             this.rooms.push(startRoom);
 
-            // 1. Random Rooms
-            const targetRooms = 15;
-            const attemptLimit = 200;
+            // 1. Critical Rooms - Staircase
+            let staircasePlaced = this.placer.placeRoom({ w: 6, h: 6, type: 'staircase', entranceCount: 1 });
+
+            // 2. Random Rooms
+            const targetRooms = 20;
+            const attemptLimit = 300;
             const SHAPES = [
                 'square', 'square', 'square',
                 'island', 'island', 'island',
@@ -83,7 +83,7 @@ export class Map {
             for (let i = 0; i < attemptLimit && this.rooms.length < targetRooms; i++) {
                 const w = Math.floor(Math.random() * 8) + 10;
                 const h = Math.floor(Math.random() * 8) + 10;
-                const entrances = Math.floor(Math.random() * 2) + 1;
+                const entrances = Math.floor(Math.random() * 2) + 2;
                 const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
 
                 this.placer.placeRoom({
@@ -94,14 +94,14 @@ export class Map {
                 });
             }
 
-            // 2. Special Rooms
+            // 3. Special Rooms
             this.placer.placeRoom({ w: 8, h: 8, type: 'treasure', entranceCount: 1 });
-            this.placer.placeRoom({ w: 10, h: 10, type: 'staircase', entranceCount: 1 });
+            // Staircase already placed
             this.placer.placeRoom({ w: 6, h: 6, type: 'statue', entranceCount: 1 });
             this.placer.placeRoom({ w: 6, h: 6, type: 'altar', entranceCount: 1 });
             this.placer.placeRoom({ w: 8, h: 8, type: 'shop', entranceCount: 1 });
 
-            // 3. Connectivity
+            // 4. Connectivity
             this.connector.connectRooms();
 
             connectivityResult = this.connector.checkConnectivity();
@@ -110,8 +110,15 @@ export class Map {
                 connectivityResult = this.connector.checkConnectivity();
             }
 
-            if (connectivityResult.success) success = true;
+            // 5. Convert dead-end normal rooms into extra treasure rooms
+            // (Removed as per user request to make dead-ends combat rooms)
 
+            if (connectivityResult.success && staircasePlaced) success = true;
+
+            if (attempts >= maxAttempts && !success) {
+                console.error("Dungeon generation failed to ensure connectivity or staircase placement.");
+                // Return or handle failure? The loop will exit anyway.
+            }
         } while (!success && attempts < maxAttempts);
 
         if (!success) {
@@ -168,33 +175,42 @@ export class Map {
 
     isWallAtTile(tx, ty) {
         if (!this.isValid(tx, ty)) return true;
-        return this.tiles[ty][tx] === 1;
+        return this.tiles[ty][tx] === 1 || this.tiles[ty][tx] === 2;
     }
 
     closeRoom(room) {
         if (!room) return;
         for (let c of room.connectors) {
+            if (!c.used) continue; // Only block corridors that are actually connected
+            // For N/S connectors (dir.x===0): block (x,y) and (x+1,y) — horizontal pair
+            // For E/W connectors (dir.x!==0): block (x,y) and (x,y+1) — vertical pair
             this.tiles[c.y][c.x] = 2; // Locked door
-            const neighbors = [
-                { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
-                { dx: 1, dy: 1 }, { dx: -1, dy: 1 }, { dx: 1, dy: -1 }, { dx: -1, dy: -1 }
-            ];
-            for (let n of neighbors) {
-                const nx = c.x + n.dx;
-                const ny = c.y + n.dy;
-                if (this.isValid(nx, ny) && this.roomGrid[ny][nx] === -1 && this.tiles[ny][nx] === 0) {
-                    this.tiles[ny][nx] = 2; // Lockdown
-                }
+
+            if (c.dir.x === 0) {
+                // Corridor flows north/south → entrance is side-by-side horizontally
+                if (this.isValid(c.x + 1, c.y)) this.tiles[c.y][c.x + 1] = 2;
+            } else {
+                // Corridor flows east/west → entrance is stacked vertically
+                if (this.isValid(c.x, c.y + 1)) this.tiles[c.y + 1][c.x] = 2;
             }
         }
     }
 
     openRoom(room) {
         if (!room) return;
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                if (this.tiles[y][x] === 2) {
-                    this.tiles[y][x] = 0;
+        for (let c of room.connectors) {
+            if (!c.used) continue; // Only restore tiles that were actually locked
+            // Restore only the tiles that were locked by closeRoom
+            if (this.isValid(c.x, c.y) && this.tiles[c.y][c.x] === 2) {
+                this.tiles[c.y][c.x] = 0;
+            }
+            if (c.dir.x === 0) {
+                if (this.isValid(c.x + 1, c.y) && this.tiles[c.y][c.x + 1] === 2) {
+                    this.tiles[c.y][c.x + 1] = 0;
+                }
+            } else {
+                if (this.isValid(c.x, c.y + 1) && this.tiles[c.y + 1][c.x] === 2) {
+                    this.tiles[c.y + 1][c.x] = 0;
                 }
             }
         }

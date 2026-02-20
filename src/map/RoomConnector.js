@@ -260,13 +260,11 @@ export class RoomConnector {
                 this.map.tiles[connector.y][connector.x] = 0;
                 if (connector.dir.x === 0) {
                     if (this.map.isValid(connector.x + 1, connector.y)) {
-                        const rId = this.map.roomGrid[connector.y][connector.x + 1];
-                        if (rId === -1 || rId === room.id) this.map.tiles[connector.y][connector.x + 1] = 0;
+                        this.map.tiles[connector.y][connector.x + 1] = 0;
                     }
                 } else {
                     if (this.map.isValid(connector.x, connector.y + 1)) {
-                        const rId = this.map.roomGrid[connector.y + 1][connector.x];
-                        if (rId === -1 || rId === room.id) this.map.tiles[connector.y + 1][connector.x] = 0;
+                        this.map.tiles[connector.y + 1][connector.x] = 0;
                     }
                 }
 
@@ -278,15 +276,11 @@ export class RoomConnector {
                     this.map.tiles[cy][cx] = 0;
 
                     if (connector.dir.x === 0) {
-                        if (this.map.isValid(cx + 1, cy)) {
-                            const rId = this.map.roomGrid[cy][cx + 1];
-                            if (rId === -1 || rId === room.id || (d >= targetDist - 1)) this.map.tiles[cy][cx + 1] = 0;
-                        }
+                        if (d >= targetDist - 1) this.map.tiles[cy][cx + 1] = 0;
+                        else this.map.tiles[cy][cx + 1] = 0;
                     } else {
-                        if (this.map.isValid(cx, cy + 1)) {
-                            const rId = this.map.roomGrid[cy + 1][cx];
-                            if (rId === -1 || rId === room.id || (d >= targetDist - 1)) this.map.tiles[cy + 1][cx] = 0;
-                        }
+                        if (d >= targetDist - 1) this.map.tiles[cy + 1][cx] = 0;
+                        else this.map.tiles[cy + 1][cx] = 0;
                     }
                 }
                 return;
@@ -339,13 +333,11 @@ export class RoomConnector {
                 this.map.tiles[connector.y][connector.x] = 0;
                 if (connector.dir.x === 0) {
                     if (this.map.isValid(connector.x + 1, connector.y)) {
-                        const rId = this.map.roomGrid[connector.y][connector.x + 1];
-                        if (rId === -1 || rId === room.id) this.map.tiles[connector.y][connector.x + 1] = 0;
+                        this.map.tiles[connector.y][connector.x + 1] = 0;
                     }
                 } else {
                     if (this.map.isValid(connector.x, connector.y + 1)) {
-                        const rId = this.map.roomGrid[connector.y + 1][connector.x];
-                        if (rId === -1 || rId === room.id) this.map.tiles[connector.y + 1][connector.x] = 0;
+                        this.map.tiles[connector.y + 1][connector.x] = 0;
                     }
                 }
 
@@ -357,13 +349,11 @@ export class RoomConnector {
                     this.map.tiles[ly][lx] = 0;
                     if (connector.dir.x === 0) {
                         if (this.map.isValid(lx + 1, ly)) {
-                            const rId = this.map.roomGrid[ly][lx + 1];
-                            if (rId === -1 || rId === room.id) this.map.tiles[ly][lx + 1] = 0;
+                            this.map.tiles[ly][lx + 1] = 0;
                         }
                     } else {
                         if (this.map.isValid(lx, ly + 1)) {
-                            const rId = this.map.roomGrid[ly + 1][lx];
-                            if (rId === -1 || rId === room.id) this.map.tiles[ly + 1][lx] = 0;
+                            this.map.tiles[ly + 1][lx] = 0;
                         }
                     }
                 }
@@ -371,16 +361,13 @@ export class RoomConnector {
                 for (let node of path) {
                     this.map.tiles[node.y][node.x] = 0;
                     if (this.map.isValid(node.x + 1, node.y)) {
-                        const rId = this.map.roomGrid[node.y][node.x + 1];
-                        if (rId === -1 || rId === room.id) this.map.tiles[node.y][node.x + 1] = 0;
+                        this.map.tiles[node.y][node.x + 1] = 0;
                     }
                     if (this.map.isValid(node.x, node.y + 1)) {
-                        const rId = this.map.roomGrid[node.y + 1][node.x];
-                        if (rId === -1 || rId === room.id) this.map.tiles[node.y + 1][node.x] = 0;
+                        this.map.tiles[node.y + 1][node.x] = 0;
                     }
                     if (this.map.isValid(node.x + 1, node.y + 1)) {
-                        const rId = this.map.roomGrid[node.y + 1][node.x + 1];
-                        if (rId === -1 || rId === room.id) this.map.tiles[node.y + 1][node.x + 1] = 0;
+                        this.map.tiles[node.y + 1][node.x + 1] = 0;
                     }
                 }
             }
@@ -411,6 +398,23 @@ export class RoomConnector {
             }
             if (path) {
                 this.map.renderer.drawPath(path);
+
+                // Explicitly open the 2-tile entrance at each connector (direction-aware).
+                // drawPath's fill2x2 always expands +x/+y, which can miss one entrance tile
+                // when the path approaches from a perpendicular direction.
+                const openConnector = (c) => {
+                    this.map.tiles[c.y][c.x] = 0;
+                    if (c.dir.x === 0) {
+                        // N/S connector: entrance is side-by-side horizontally (x and x+1)
+                        if (this.map.isValid(c.x + 1, c.y)) this.map.tiles[c.y][c.x + 1] = 0;
+                    } else {
+                        // E/W connector: entrance is stacked vertically (y and y+1)
+                        if (this.map.isValid(c.x, c.y + 1)) this.map.tiles[c.y + 1][c.x] = 0;
+                    }
+                };
+                openConnector(bestPair.start);
+                openConnector(bestPair.end);
+
                 bestPair.start.used = true;
                 bestPair.end.used = true;
             }

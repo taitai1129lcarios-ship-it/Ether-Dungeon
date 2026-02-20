@@ -23,9 +23,20 @@ export class ShopNPC extends Entity {
     draw(ctx) {
         const cx = this.x + this.width / 2;
 
+        // Determine if player is to the left
+        const px = this.game.player.x + this.game.player.width / 2;
+        const facingLeft = px < cx;
+
         // NPC image
         if (this._image && this._image.complete && this._image.naturalWidth !== 0) {
+            ctx.save();
+            if (facingLeft) {
+                ctx.translate(cx, 0);
+                ctx.scale(-1, 1);
+                ctx.translate(-cx, 0);
+            }
             ctx.drawImage(this._image, this.x, this.y, this.width, this.height);
+            ctx.restore();
         }
 
         // Prompt

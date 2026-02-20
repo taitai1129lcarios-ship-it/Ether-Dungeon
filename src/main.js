@@ -140,8 +140,8 @@ class Game {
             resetInventorySelection();
         }
 
-        // Larger Map: 80x60 tiles (3200x2400 pixels)
-        this.map = new Map(80, 60, 40);
+        // Larger Map: 100x80 tiles (4000x3200 pixels)
+        this.map = new Map(100, 80, 40);
         this.map.generate();
         _debugLog("Map Generated");
 
@@ -228,6 +228,8 @@ class Game {
                 this.shopNPCs.push(new ShopNPC(this, sx, sy));
                 continue;
             }
+
+
         }
 
         this.lastTime = 0;
@@ -554,14 +556,20 @@ class Game {
         }
 
         // --- Room Encounter Logic ---
-        const px = Math.floor(this.player.x / this.map.tileSize);
-        const py = Math.floor(this.player.y / this.map.tileSize);
 
-        // Find current room (Even stricter bounds: +2 to ensure player is deeply inside)
-        const currentRoom = this.map.rooms.find(r =>
-            px >= r.x + 2 && px < r.x + r.w - 2 &&
-            py >= r.y + 2 && py < r.y + r.h - 2
-        );
+        // Find current room (Pixel-based with 10px margin to prevent getting stuck in doors)
+        const margin = 5;
+        const pts = this.map.tileSize;
+        const currentRoom = this.map.rooms.find(r => {
+            const rx = (r.x + 1) * pts + margin;
+            const ry = (r.y + 1) * pts + margin;
+            const rw = (r.w - 2) * pts - margin * 2;
+            const rh = (r.h - 2) * pts - margin * 2;
+
+            // Check if player bounding box is fully within the margined floor area
+            return this.player.x >= rx && this.player.x + this.player.width <= rx + rw &&
+                this.player.y >= ry && this.player.y + this.player.height <= ry + rh;
+        });
 
         if (currentRoom) {
             // Trigger Encounter
@@ -569,30 +577,72 @@ class Game {
                 currentRoom.active = true;
                 this.map.closeRoom(currentRoom);
 
-                // Spawn Enemies (Only in rooms large enough)
-                if (currentRoom.w < 10 || currentRoom.h < 10) {
-                    // Room too small — clear it immediately without spawning enemies
+                // Only spawn enemies in normal combat rooms
+                if (currentRoom.type !== 'normal') {
+                    // Non-combat room — clear immediately (safety net; should already be cleared)
                     currentRoom.active = false;
                     currentRoom.cleared = true;
                     this.map.openRoom(currentRoom);
                     return;
                 }
-                const enemyCount = Math.floor(Math.random() * 3) + 2; // 2-4 enemies
+                // Calculate enemy count based on room area
+                // Area-based scaling: approx 1 enemy per 25 tiles + random offset. Min 2.
+                const area = currentRoom.w * currentRoom.h;
+                const enemyCount = Math.max(2, Math.floor(area / 25) + Math.floor(Math.random() * 3));
                 for (let i = 0; i < enemyCount; i++) {
-                    // Safe spawn area: Reduce range by 1 extra tile (w-3) to accommodate 64px Goblins
-                    // (64px > 40px tile, so we need >1 tile buffer from the right/bottom walls)
-                    const spawnW = Math.max(1, currentRoom.w - 3);
-                    const spawnH = Math.max(1, currentRoom.h - 3);
-
-                    const ex = (currentRoom.x + 1 + Math.floor(Math.random() * spawnW)) * this.map.tileSize;
-                    const ey = (currentRoom.y + 1 + Math.floor(Math.random() * spawnH)) * this.map.tileSize;
-
+                    let enemyToSpawn = null;
                     const rand = Math.random();
+                    let ew = 32, eh = 32; // Default dimensions (Slime)
+
                     if (rand < 0.4) {
-                        this.enemies.push(new Slime(this, ex, ey));
+                        enemyToSpawn = 'slime';
+                        ew = 32; eh = 32;
                     } else if (rand < 0.6) {
-                        this.enemies.push(new Goblin(this, ex, ey));
+                        enemyToSpawn = 'goblin';
+                        ew = 64; eh = 64;
                     } else if (rand < 0.8) {
+                        enemyToSpawn = 'bat';
+                        ew = 24; eh = 24;
+                    } else {
+                        enemyToSpawn = 'skeleton';
+                        ew = 40; eh = 48;
+                    }
+
+                    let ex, ey;
+                    let validSpawn = false;
+                    let attempts = 0;
+
+                    while (!validSpawn && attempts < 30) {
+                        attempts++;
+                        const spawnW = Math.max(1, currentRoom.w - 2);
+                        const spawnH = Math.max(1, currentRoom.h - 2);
+                        const tx = currentRoom.x + 1 + Math.floor(Math.random() * spawnW);
+                        const ty = currentRoom.y + 1 + Math.floor(Math.random() * spawnH);
+
+                        if (this.map.tiles[ty][tx] === 0) {
+                            // Center enemy on tile
+                            ex = (tx + 0.5) * this.map.tileSize - ew / 2;
+                            ey = (ty + 0.5) * this.map.tileSize - eh / 2;
+
+                            // Check all 4 corners for wall collision
+                            const hitsWall = this.map.isWall(ex, ey) ||
+                                this.map.isWall(ex + ew, ey) ||
+                                this.map.isWall(ex, ey + eh) ||
+                                this.map.isWall(ex + ew, ey + eh);
+
+                            if (!hitsWall) {
+                                validSpawn = true;
+                            }
+                        }
+                    }
+
+                    if (!validSpawn) continue;
+
+                    if (enemyToSpawn === 'slime') {
+                        this.enemies.push(new Slime(this, ex, ey));
+                    } else if (enemyToSpawn === 'goblin') {
+                        this.enemies.push(new Goblin(this, ex, ey));
+                    } else if (enemyToSpawn === 'bat') {
                         this.enemies.push(new Bat(this, ex, ey));
                     } else {
                         this.enemies.push(new SkeletonArcher(this, ex, ey));

@@ -299,10 +299,10 @@ export class Player extends Entity {
         // We need to map keys to slots to check for charge
         const inputMap = [
             { key: 'Space', slot: SkillType.NORMAL },
-            { key: 'KeyM', slot: 'primary1' },
-            { key: 'KeyK', slot: 'primary2' },
+            { key: 'KeyQ', slot: 'primary1' },
+            { key: 'KeyE', slot: 'primary2' },
             { key: 'KeyC', slot: SkillType.SECONDARY },
-            { key: 'KeyL', slot: SkillType.ULTIMATE }
+            { key: 'KeyX', slot: SkillType.ULTIMATE }
         ];
 
         let chargeInputDetected = false;
